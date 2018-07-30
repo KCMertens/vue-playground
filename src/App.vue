@@ -1,5 +1,6 @@
 <template>
-  <div id="app" v-if="appConfig">
+  <div id="app" v-if="config">
+    <span>{{config.title}}</span>
     <div id="nav">
       <router-link to="/">Home</router-link> |
       <router-link to="/about">About</router-link>
@@ -13,20 +14,15 @@
 
 <script lang="ts">
 import Vue from 'vue';
-
-import * as Api from '@/api';
+import * as Api from './api';
 
 export default Vue.extend ({
   name: 'App',
-  data: () => ({
-    appConfig: null,
-  }),
-
-  beforeCreate() {
-    const self = this;
-    Api.getAppConfig().then((config) => {
-      self.$data.appConfig = config;
-    });
+  
+  computed: {
+    config(): Api.AppConfig {
+        return this.$store.state.appConfig;
+      },
   },
 });
 </script>
