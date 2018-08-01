@@ -1,16 +1,17 @@
+import {ApiError, AppConfig} from '@/types/app';
 
-const timeout = 5000;
+const settings = {
+    debug: true,
+    delay: 2500,
+    throw: false,
+};
+
 function slowFetch(stuff?: string|Request, config?: RequestInit): Promise<Response> {
-    return fetch(stuff, config).then(
-        (r: Response) => new Promise<Response>((resolve, reject) => setTimeout(() => resolve(r), timeout)),
-        (e) => new Promise<Response>((resolve, reject) => setTimeout(() => reject(e), timeout)));
-}
+    const res = fetch(stuff, config);
 
-export interface ApiError {
-    title: string;
-    message: string;
-    /** http code, -1 if miscellaneous network error */
-    status: number;
+    return !settings.debug ? res : res.then(
+        (r: Response) => new Promise<Response>((resolve, reject) => setTimeout(() => resolve(r), settings.delay)),
+        (e) => new Promise<Response>((resolve, reject) => setTimeout(() => reject(e), settings.delay)));
 }
 
 /**
@@ -22,52 +23,67 @@ export interface ApiError {
  * @param response
  */
 async function mapAndRejectErrors(response: Response): Promise<any> {
+    if (settings.debug && settings.throw) {
+        throw new ApiError('Api debugging error', 'Thrown for request ' + response.url, -1);
+    }
+    
     if (response.ok) { // 200-299, should be a valid response, leave to caller to deserialize
         return response;
     }
 
-    // Something else is going on, see if it's a blacklab error object
+    // Something else is going on, assume it's a blacklab-server error
     try {
         const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
         if (contentType.includes('json')) {
             const json = await response.json();
 
             // TODO
-            return Promise.reject({
-                title: 'Some json error',
-                message: 'Some json erorr',
-                status: response.status,
-            });
+            return Promise.reject(new ApiError(
+                'Some blacklab error in json format.', 
+                'Todo parse the error json error', 
+                response.status));
         } else if (contentType.includes('xml')) {
             const text = await response.text();
             const xml = new DOMParser().parseFromString(text, 'application/xml');
 
             // TODO
-            return Promise.reject({
-                title: 'Some xml error',
-                message: 'Some xml error',
-                status: response.status,
-            });
+            return Promise.reject(new ApiError(
+                'Some blacklab error in xml format.', 
+                'Todo parse the error json error', 
+                response.status));
         } else {
-            return Promise.reject({
-                title: 'Network error',
-                message: 'Unknown reason.',
-                status: response.status,
-            });
+            return Promise.reject(new ApiError(
+                'Unknown network error.', 
+                `Could not determine response type from ${response.url}`, 
+                response.status));
         }
     } catch (error) {
-        return Promise.reject({
-            title: 'Unknown error',
-            message: 'Received invalid response from ' + response.url,
-            status: response.status,
-        });
+        return Promise.reject(new ApiError(
+            'Unknown network error.', 
+            `Receive invalid response from ${response.url}`, 
+            response.status));
     }
-}
-
-export interface AppConfig {
-    title: 'Corpus Frontend - vue';
 }
 
 export function getAppConfig(): Promise<AppConfig> {
     return slowFetch('/config/appconfig.json').then(mapAndRejectErrors).then((r) => r.json());
+}
+
+import * as BLTypes from '@/types/blacklab';
+
+export function createBlacklabApi(server: string) {
+    if (server.endsWith('/')) {
+        throw new Error('Blacklab-Server path should not end with /');
+    }
+    
+    const paths = {
+        root:       `${server}/`,
+        corpora:    `${server}/corpora/`,
+    };
+
+    return {
+        getServerInfo() { return slowFetch(paths.root).then(r => r.json()); },
+        getCorpora() { return slowFetch(paths.corpora).then(r => r.json()); },
+        getCorpus(id: string) { return slowFetch(paths.root + id).then(r => r.json()); },
+    };
 }

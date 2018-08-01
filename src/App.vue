@@ -1,49 +1,62 @@
 <template>
-  <div id="app" v-if="config">
-    <span>{{config.title}}</span>
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
+    <div id="app" v-if="config">
+        <Navbar :links="config.navbar.links"/>
+        <span>{{config.title}}</span>
+        
+        <!--
+        <div id="nav">
+            <router-link to="/">Home</router-link> |
+            <router-link to="/about">About</router-link>
+        </div>
+        <router-view/>
+        -->
     </div>
-    <router-view/>
-  </div>
-  <div v-else>
-    Loading... (spinner here)
-  </div>
+    <div v-else-if="error">
+        Oh no, some bad error happened!<br>
+        {{error.title}}<br>
+        {{error.message}}<br>
+        code: {{error.status}}
+    </div>
+    <div v-else>
+        Loading... (spinner here)
+    </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import * as Api from './api';
+import Navbar from '@/components/Navbar.vue';
+
+import {getters} from '@/store';
 
 export default Vue.extend ({
-  name: 'App',
-  
-  computed: {
-    config(): Api.AppConfig {
-        return this.$store.state.appConfig;
-      },
-  },
+    name: 'App',
+    components: {
+        Navbar,
+    },
+    computed: {
+        config: getters.getAppConfig,
+        error: getters.getUnrecoverableError,
+    },
 });
 </script>
 
 
 <style lang="scss">
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
+    font-family: 'Avenir', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: center;
+    color: #2c3e50;
 }
 #nav {
-  padding: 30px;
-  a {
-    font-weight: bold;
-    color: #2c3e50;
-    &.router-link-exact-active {
-      color: #42b983;
+    padding: 30px;
+    a {
+        font-weight: bold;
+        color: #2c3e50;
+        &.router-link-exact-active {
+            color: #42b983;
+        }
     }
-  }
 }
 </style>

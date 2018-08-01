@@ -16,7 +16,6 @@
     "object-literal-sort-keys": false,
     "no-consecutive-blank-lines": false,
     "arrow-parens": false,
-    // "trailing-comma": false,
     "no-trailing-whitespace": false
   }
 }
