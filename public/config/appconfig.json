@@ -6,8 +6,14 @@
             "label": "Home",
             "local": true
         }, {
+            "href": "/corpora",
+            "label": "My Corpora",
+            "local": true
+        }, {
             "href":"http://ivdnt.org/",
             "label": "INT"
         }]
-    }
+    },
+
+    "blacklabServer": "http://localhost:8080/blacklab-server"
 }

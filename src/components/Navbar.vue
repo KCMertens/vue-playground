@@ -11,7 +11,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as AppTypes from '@/types/app';
+import * as AppTypes from '@/types/apptypes';
 
 export default Vue.extend({
     props: {
@@ -51,8 +51,4 @@ export default Vue.extend({
 
     }
 }
-
-
-
-
 </style>
