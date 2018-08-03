@@ -1,4 +1,4 @@
-import {mergeWith} from 'lodash-es';
+// import {mergeWith} from 'lodash-es';
 
 import {ApiError} from '@/types/apptypes';
 
@@ -74,15 +74,14 @@ async function handleNetworkError(error: Error) {
         -4);
 }
 
-export function jsonRequest(url?: string, init?: RequestInit) {
-   
-    init = mergeWith({}, init, {
-        mode: 'cors', 
+export function jsonRequest(url?: string) {
+    const init: RequestInit = {
+        mode: 'cors',
         headers: {
             Accept: 'Application/json; charset=utf-8',
         },
-    });
-   
+    };
+
     return slowFetch(url, init)
     .then(handleBlacklabError, handleNetworkError)
     .then(r => r.json());

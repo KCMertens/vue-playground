@@ -48,7 +48,7 @@ export default Vue.extend ({
     font-family: 'Avenir', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #222;
+    color: #666;
 }
 #nav {
     padding: 30px;

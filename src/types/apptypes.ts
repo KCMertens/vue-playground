@@ -39,10 +39,15 @@ export interface AppConfig {
 // -----------------------
 
 export interface NormalizedIndex extends BLTypes.BLIndex {
+    /** ID in the form username:indexname */
     id: string;
+    /** username extracted */
+    owner: string|null;
+    /** indexname extracted */
     shortId: string;
-    documentFormat: string;
-    canSearch: boolean;
-    isBusy: boolean;
-    isPrivate: boolean;
+
+    // These are now set to null if they were missing
+    documentFormat: string|null;
+    indexProgress: BLTypes.BLIndexProgress|null;
+    tokenCount: number|null;
 }

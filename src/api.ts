@@ -35,7 +35,7 @@ const paths = app.getConfig().then(({blacklabServer: server}) => {
  */
 export const blacklab = {
     getCorpora: async () => 
-        jsonRequest((await paths).root(), {mode: 'cors'})
+        jsonRequest((await paths).root())
         .then((r: BLTypes.BLServer) => Object.entries(r.indices))
         .then(r => r.map(([id, index]: [string, BLTypes.BLIndex]) => normalizeIndex(id, index))),
 };
