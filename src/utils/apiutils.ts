@@ -1,33 +1,31 @@
 // import {mergeWith} from 'lodash-es';
 
 import {ApiError} from '@/types/apptypes';
+import { AxiosError, AxiosResponse } from '../../node_modules/axios';
 
 const settings = {
-    debug: true,
     delay: 2500,
-    throw: false,
 };
 
-function slowFetch(url?: string|Request, init?: RequestInit): Promise<Response> {
-    const res = fetch(url, init);
-    
-    return !settings.debug ? res : res.then(
-        (r: Response) => new Promise<Response>((resolve, reject) => setTimeout(() => resolve(r), settings.delay)),
-        (e) => new Promise<Response>((resolve, reject) => setTimeout(() => reject(e), settings.delay)));
+export function delayResponse<T>(r: T): Promise<T> {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => resolve(r), 2500);
+    });
+}
+
+export function delayError<T>(e: AxiosError): Promise<T> {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => reject(e), 2500);
+    });
 }
 
 /**
- * If response.ok is true, returns the response as-is.
- *
- * If response.ok is false, attempts to read the body as BlackLab error and throws an ApiError.
- * If the response can't be read, throws a generic ApiError.
+ * Maps network error and blacklab error to ApiError.
+ * For use with axios. Always returns a rejected promise containing the error.
  *
  * @param response
  */
-async function handleBlacklabError(response: Response): Promise<any> {
-    if (settings.debug && settings.throw) {
-        throw new ApiError('Api debugging error', 'Thrown for request ' + response.url, -1);
-    }
+export async function handleError<T>(error: AxiosError): Promise<T> {
     
     if (response.ok) { // 200-299, should be a valid response, leave to caller to deserialize
         return response;

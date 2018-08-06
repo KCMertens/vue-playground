@@ -3,7 +3,7 @@
 <div class="corpus">
     <div class="status">
         <a
-            :class="['search', 'fa', 'fa-search', {'disabled': !canSearch}]"
+            :class="['search fa fa-search', {'disabled': !canSearch}]"
             :title="`Search the '${corpus.shortId}' corpus`"
         />
         <a
@@ -15,6 +15,7 @@
         <span class="format">{{corpus.documentFormat}}</span>
         <span class="modified">{{corpus.timeModified}}</span>
         
+        <!-- TODO disable and prevent actions while inappropriate -->
         <button type="button" 
             v-if="isPrivate" 
             @click="toggleMode('upload')"
@@ -29,24 +30,28 @@
 
     <div v-if="isMode('upload')" class="upload">
         <div>
-            <input type="file" name="documents" multiple :id="`${corpus.id}-upload-documents`"
-                @change="uploadChange"
+            <input type="file" name="documents" multiple 
+                :id="`${corpus.id}-upload-documents`"
                 ref="uploadDocuments"
+                @change="upload.docs = $event.target.files"
                 />
-            <label :for="`${corpus.id}-upload-documents`">documents {{ upload.documentCount && `(${upload.documentCount})` }}</label>
+            <label :for="`${corpus.id}-upload-documents`">documents 
+                {{ (upload.docs && upload.docs.length > 0) ? `(${upload.docs.length})` : '' }}</label>
         </div>
         <div>
-            <input type="file" name="metadata" multiple :id="`${corpus.id}-upload-metadata`"
-                @change="uploadChange"
+            <input type="file" name="metadata" multiple 
+                :id="`${corpus.id}-upload-metadata`"
                 ref="uploadMetadata"
+                @change="upload.meta = $event.target.files"
                 />
-            <label :for="`${corpus.id}-upload-metadata`">metadata {{ upload.metadataCount && `(${upload.metadataCount})` }}</label>
+            <label :for="`${corpus.id}-upload-metadata`">metadata 
+                {{ (upload.meta && upload.meta.length > 0) ? `(${upload.meta.length})` : '' }}</label>
         </div>
         
         <button @click="uploadSave">save</button>
         <button @click="uploadCancel" class="fa fa-times"> cancel</button>
 
-        <Error unstyled :error="uploadError"/>
+        <Error unstyled :error="upload.error"/>
     </div>
 </div>
 
@@ -57,6 +62,8 @@ import Vue from 'vue';
 
 import {NormalizedIndex, ApiError} from '@/types/apptypes';
 import {formatNumber} from '@/utils/utils';
+import {blacklab as BLApi} from '@/api';
+import * as corporaStore from '@/store/corporastore';
 
 import Upload from '@/components/corpus/Upload.vue';
 import Error from '@/components/Error.vue';
@@ -72,11 +79,10 @@ export default Vue.extend({
     },
     data: () => ({
         mode: null as string|null,
-        uploadError: null as ApiError|null,
-
+        
         upload: {
-            documentCount: null as number|null,
-            metadataCount: null as number|null,
+            docs: null as FileList|null,
+            meta: null as FileList|null,
         },
     }),
     computed: {
@@ -102,17 +108,38 @@ export default Vue.extend({
         toggleMode(mode: string|null): void { this.mode = (this.mode === mode) ? null : mode; },
         isMode(mode: string): boolean { return this.mode === mode; },
 
-        uploadSave(): void { this.toggleMode(null); },
+        uploadSave(): void { 
+            if (this.upload.docs == null) {
+                return;
+            }
+
+            corporaStore.actions.uploadDocuments({
+                indexId: this.corpus.id, 
+                docs: this.upload.docs, 
+                meta: this.upload.meta,
+            });
+            
+            (this.$refs.uploadDocuments as HTMLInputElement).files = null;
+            (this.$refs.uploadMetadata as HTMLInputElement).files = null;
+            
+
+            
+            // todo prevent other actions while upload is running
+
+            
+        },
         uploadCancel(): void { this.toggleMode(null); },
         uploadChange(): void {
-            const docs = this.$refs.uploadDocuments as HTMLInputElement;
-            const meta = this.$refs.uploadMetadata as HTMLInputElement;
-            
-            this.upload.documentCount = docs.files && docs.files.length || null;
-            this.upload.metadataCount = meta.files && meta.files.length || null;
+            this.upload.docs = (this.$refs.uploadDocuments as HTMLInputElement).files;
+            this.upload.meta = (this.$refs.uploadMetadata as HTMLInputElement).files;
         },
     },
 });
+
+
+
+
+
 
 </script>
 
