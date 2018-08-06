@@ -4,13 +4,13 @@ export class ApiError extends Error {
     public readonly title: string;
     public readonly message: string;
     /** http code, -1 if miscellaneous network error */
-    public readonly code: number;
+    public readonly statusText: string;
 
-    constructor(title: string, message: string, status: number) {
+    constructor(title: string, message: string, statusText: string) {
         super();
         this.title = title;
         this.message = message;
-        this.code = status;
+        this.statusText = statusText;
     }
 }
 

@@ -3,7 +3,6 @@ import {getStoreBuilder} from 'vuex-typex';
 import * as Api from '@/api';
 import {RootState} from '@/store';
 
-import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex, ApiError } from '@/types/apptypes';
 
 export interface CorporaState {
@@ -62,6 +61,7 @@ export const actions = {
     }, 'load'),
 
     uploadDocuments: b.dispatch((context, payload: {indexId: string, docs: FileList, meta?: FileList|null}) => {
+        mutations.uploadStart(payload.indexId);
         Api.blacklab.uploadDocuments(
             payload.indexId, 
             payload.docs, 

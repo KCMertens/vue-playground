@@ -16,6 +16,15 @@
     "object-literal-sort-keys": false,
     "no-consecutive-blank-lines": false,
     "arrow-parens": false,
-    "no-trailing-whitespace": false
+    "no-trailing-whitespace": false,
+    "trailing-comma": [
+      true, 
+      {
+        "multiline": {
+          "arguments": "never"
+        } 
+      }
+    ],
+    "eofline": false
   }
 }

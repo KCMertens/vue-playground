@@ -30,7 +30,7 @@ const mutations = {
 
 export const actions = {
     init: b.dispatch(() => {
-        AppAPI.getConfig().then(mutations.setConfig, mutations.setFatalError);
+        AppAPI.config.then(mutations.setConfig, mutations.setFatalError);
     }, 'init'),
 };
 

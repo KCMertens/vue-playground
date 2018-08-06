@@ -128,6 +128,7 @@ export default Vue.extend({
 
             
         },
+        // TODO allow cancelling the actual upload
         uploadCancel(): void { this.toggleMode(null); },
         uploadChange(): void {
             this.upload.docs = (this.$refs.uploadDocuments as HTMLInputElement).files;

@@ -1,6 +1,10 @@
 import {NormalizedIndex} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 
+export function isBLError(e: any): e is BLTypes.BLError {
+    return !!e && !!e.error && !!e.error.code && !!e.error.message;
+}
+
 export function normalizeIndex(id: string, index: BLTypes.BLIndex): NormalizedIndex {
     return {
         id,

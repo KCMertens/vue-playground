@@ -7,7 +7,7 @@
             :corpus="corpus" 
             :key="corpus.id"/>
 
-        <Error :error="error" message="Could not load corpora."/>
+        <Error :error="error" message="Could not load corpora." :retry="reload"/>
     </div>
 
 </template>
@@ -29,8 +29,13 @@ export default Vue.extend({
         corpora: corporaStore.get.corpora,
         error: corporaStore.get.networkError,
     },
-    beforeCreate() {
-        corporaStore.actions.load();
+    methods: {
+        reload(): void {
+            corporaStore.actions.load();
+        }
+    },
+    created() {
+        this.reload();
     },
 });
 </script>

@@ -9,9 +9,9 @@
     "esModuleInterop": true,
     "sourceMap": true,
     "baseUrl": ".",
+    "noImplicitAny": true,
     "types": [
       "node",
-      "jest"
     ],
     "paths": {
       "@/*": [

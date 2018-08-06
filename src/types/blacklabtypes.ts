@@ -1,3 +1,15 @@
+export interface BLResponse {
+    code: string;
+    message: string;
+}
+
+export interface BLError {
+    error: {
+        code: string;
+        message: string;
+    };
+}
+
 export interface BLIndexProgress {
     /** Number of .xml files indexed in this indexing action so far. */
     filesProcessed: number;
