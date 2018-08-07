@@ -3,8 +3,6 @@ import axios, {AxiosResponse, AxiosRequestConfig, AxiosError} from 'axios';
 import {ApiError} from '@/types/apptypes';
 import {BLError} from '@/types/blacklabtypes';
 import {isBLError} from '@/utils/blacklabutils';
-import { promises } from 'fs';
-
 
 const settings = {
     delay: 2500,
@@ -25,11 +23,12 @@ export function delayError<T>(e: AxiosError): Promise<AxiosResponse<never>> {
 /**
  * Maps network error and blacklab error to ApiError.
  * For use with axios. Always returns a rejected promise containing the error.
- *
- * TODO try to handle xml errors
- * @param response
  */
 export async function handleError<T>(error: AxiosError): Promise<never> {
+    if (!error.config) { // is a cancelled request, message containing details
+        return Promise.reject(new ApiError('Request cancelled', `Request was cancelled: ${error}`, ''));
+    }
+    
     const response = error.response;
     if (!response) {
         throw new ApiError(

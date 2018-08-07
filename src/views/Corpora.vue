@@ -3,8 +3,9 @@
         <div v-if="!corpora && !error">
             Loading corpora...
         </div>
-        <Corpus v-else-if="!error" v-for="corpus in corpora" 
+        <Corpus v-else-if="corpora" v-for="corpus in corpora" 
             :corpus="corpus" 
+            :upload-state="uploads[corpus.id]"
             :key="corpus.id"/>
 
         <Error :error="error" message="Could not load corpora." :retry="reload"/>
@@ -28,6 +29,7 @@ export default Vue.extend({
     computed: {
         corpora: corporaStore.get.corpora,
         error: corporaStore.get.networkError,
+        uploads: corporaStore.get.uploads
     },
     methods: {
         reload(): void {

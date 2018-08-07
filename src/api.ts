@@ -43,6 +43,7 @@ const paths = {
         So ensure our requests end with a trailing slash to prevent the server from redirecting
     */
     root: () => './', 
+    index: (indexId: string) => `${indexId}/status`,
     documentUpload: (indexId: string) => `${indexId}/docs/`,
 };
 
@@ -54,12 +55,17 @@ export const blacklab = {
         .get<BLTypes.BLServer>(paths.root())
         .then(r => Object.entries(r.indices))
         .then(r => r.map(([id, index]: [string, BLTypes.BLIndex]) => normalizeIndex(id, index))),
-        
+
+    getCorpus: async (id: string) => (await blacklabEndpoint)
+        .get<BLTypes.BLIndex>(paths.index(id))
+        .then(r => normalizeIndex(id, r)),
+
     uploadDocuments: async (
-    indexId: string, 
-    docs: FileList, 
-    meta?: FileList|null, 
-    onProgress?: (percentage: number) => void) => {
+        indexId: string, 
+        docs: FileList, 
+        meta?: FileList|null, 
+        onProgress?: (percentage: number) => void
+    ) => {
         const endpoint = await blacklabEndpoint;
         const formData = new FormData();
         for (let i = 0; i < (docs ? docs.length : 0); ++i) {
@@ -68,16 +74,21 @@ export const blacklab = {
         for (let i = 0; i < (meta ? meta.length : 0); ++i) {
             formData.append('linkeddata', meta!.item(i)!, meta!.item(i)!.name);
         }
-        
-        return endpoint.post(paths.documentUpload(indexId), formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: event => {
-                if (onProgress) {
-                    onProgress(event.loaded / event.total * 100);
-                }
-            },
-        });
+
+        const cancelToken = axios.CancelToken.source();
+        return {
+            request: endpoint.post<BLTypes.BLResponse>(paths.documentUpload(indexId), formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                onUploadProgress: event => {
+                    if (onProgress) {
+                        onProgress(event.loaded / event.total * 100);
+                    }
+                },
+                cancelToken: cancelToken.token
+            }),
+            cancel: cancelToken.cancel
+        };
     },
 };

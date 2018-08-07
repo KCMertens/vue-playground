@@ -1,18 +1,28 @@
 import {getStoreBuilder} from 'vuex-typex';
+import { Canceler } from 'axios';
 
 import * as Api from '@/api';
 import {RootState} from '@/store';
 
 import { NormalizedIndex, ApiError } from '@/types/apptypes';
+import * as BLTypes from '@/types/blacklabtypes';
 
 export interface CorporaState {
+    /** Complete list of all corpora. Null when uninitialized. May be stale when error occurred. */
     corpora: NormalizedIndex[]|null;
+    /** Any error encountered loading the list of corpora, null when last request was successful. */
     error: ApiError|null;
     uploads: {
+        /** Keyed by full corpus id */
         [key: string]: {
-            progress: number;
+            /** Null unless an upload is currently ongoing */
+            progress: number|null;
+            /** Cancel an ongoing upload, null if no upload in progress */
+            cancel: Canceler|null;
+            /** Error returned by the last attempted upload, null if upload was successful */
             error: ApiError|null;
-            response: string|null;
+            /** Response returned by the last attempted upload, null upload was unsuccessful */
+            response: BLTypes.BLResponse|null;
         };
     };
 }
@@ -22,6 +32,9 @@ const initialState: CorporaState = {
     uploads: {},
 };
 
+/** Ongoing requests for corpora, so we don't launch refreshes for the same corpus twice */
+const refreshes: {[key: string]: Promise<NormalizedIndex>|undefined} = {};
+
 // Same store builder instance as used by root store, so no 
 // need to explicitly register the module. anywhere
 const b = getStoreBuilder<RootState>().module('corpora', initialState);
@@ -30,51 +43,156 @@ const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
         state.corpora = payload;
         state.error = null;
+
+        // Remove upload state for deleted corpora, init upload state for new corpora
+        const oldUploads = state.uploads;
+        state.uploads = payload.reduce((newUploads, index) => {
+            newUploads[index.id] = oldUploads[index.id] || {
+                progress: null,
+                error: null,
+                response: null,
+                cancel: null,
+            };
+            return newUploads;
+        }, {} as CorporaState['uploads']);
+
     }, 'setCorpora'),
-    error: b.commit((state, payload: ApiError) => state.error = payload, 'setCorporaError'),
+    corpus: b.commit((state, payload: NormalizedIndex) => {
+        if (!state.corpora) {
+            state.corpora = [];
+        }
+        // Can't use corpora[index] = {...}, see https://vuejs.org/2016/02/06/common-gotchas/
+        const i = state.corpora.findIndex(c => c.id === payload.id);
+        i !== -1 ? state.corpora.splice(i, 1, payload) : state.corpora.push(payload);
+    }, 'setCorpus'),
+    error: b.commit((state, payload: ApiError|null) => state.error = payload, 'setCorporaError'),
     
-    uploadStart: b.commit((state, payload: string) => {
-        state.uploads[payload] = {
+    uploadStart: b.commit((state, payload: { id: string, cancel: Canceler}) => {
+        state.uploads[payload.id] = {
             progress: 0,
             error: null,
             response: null,
+            cancel: payload.cancel
         };
     }, 'startUpload'),
     uploadProgress: b.commit((state, payload: { id: string, progress: number }) => {
-        state.uploads[payload.id].progress = payload.progress;
-    }, 'uploadProgress'),
-    uploadError: b.commit((state, payload: {id: string, error: ApiError}) => {
-        state.uploads[payload.id].error = payload.error;
-    }, 'uploadError'),
-};
-
-export const actions = {
-    load: b.dispatch(async () => {
-        try {
-            const corpora = await Api.blacklab.getCorpora();
-            mutations.corpora(corpora);
-        } catch (error) {
-            mutations.error(error);
+        // Sometimes an event comes in even after the upload was cancelled
+        // In this case, don't safe it.
+        if (state.uploads[payload.id].cancel) { 
+            state.uploads[payload.id].progress = payload.progress;
         }
         
-        // .then(mutations.corpora, mutations.error);
-    }, 'load'),
+    }, 'uploadProgress'),
+    uploadError: b.commit((state, payload: {id: string, error: ApiError}) => {
+        state.uploads[payload.id] = {
+            error: payload.error,
+            progress: null,
+            response: null,
+            cancel: null,
+        };
+    }, 'uploadError'),
+    uploadComplete: b.commit((state, payload: { id: string, response: BLTypes.BLResponse}) => {
+        state.uploads[payload.id] = {
+            progress: null,
+            response: payload.response,
+            error: null,
+            cancel: null
+        };
+    }, 'uploadComplete'),
+    uploadCanceled: b.commit((state, payload: {id: string}) => {
+        console.log('processed cancellation');
+        state.uploads[payload.id] = {
+            progress: null,
+            response: null,
+            error: null,
+            cancel: null,
+        };
+    }, 'uploadCanceled')
+};
 
-    uploadDocuments: b.dispatch((context, payload: {indexId: string, docs: FileList, meta?: FileList|null}) => {
-        mutations.uploadStart(payload.indexId);
-        Api.blacklab.uploadDocuments(
-            payload.indexId, 
-            payload.docs, 
-            payload.meta, 
-            progress => mutations.uploadProgress({id: payload.indexId, progress}),
-        )
-        .catch(error => mutations.uploadError({id: payload.indexId, error}));
-    }, 'uploadDocuments'),
+
+
+const loadAction = b.dispatch(() => {
+    const req = Api.blacklab.getCorpora();
+    req.then(corpora => corpora.forEach(c => {
+        if (c.indexProgress) {
+            refreshAction({id: c.id});
+        }   
+    }));
+
+    mutations.error(null);
+    req.then(mutations.corpora, mutations.error);
+}, 'load');
+
+
+const refreshAction = b.dispatch((context, {id}: {id: string}) => {
+    if (refreshes[id]) {
+        return;
+    }
+    const request = refreshes[id] = Api.blacklab.getCorpus(id);
+
+    request.finally(() => { // clear the now fulfilled request first
+        if (refreshes[id] === request) {
+            delete refreshes[id];
+        }
+    });
+
+    request.then(corpus => { // so that we can launch a new request here if the corpus in indexing something
+        mutations.corpus(corpus);
+        if (corpus.indexProgress) {
+            actions.refresh({id});
+        }
+    })
+    .catch(e => { 
+        console.log('error when refreshing corpus ' + id, e); 
+        mutations.error(e); 
+    });
+}, 'refresh');
+
+const uploadDocumentsAction = b.dispatch((
+    context, 
+    {id, docs, meta}: {id: string, docs: FileList, meta?: FileList|null}
+) => {
+    const onUploadProgress = (progress: number) => {
+        mutations.uploadProgress({id, progress});
+        if (progress === 100) {
+            actions.refresh({id});
+        }
+    };
+    
+    Api.blacklab
+    .uploadDocuments(id, docs, meta, onUploadProgress)
+    .then(({request, cancel}) => {
+        mutations.uploadStart({id, cancel});
+
+        request
+        .then(response => mutations.uploadComplete({id, response}))
+        .catch(error => {
+            console.log('error during upload to corpus ' + id, error);
+            mutations.uploadError({id, error});
+        });
+    });
+}, 'uploadDocuments');
+
+const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id: string, reason?: string}) => {
+    const {[id]: uploadState } = context.state.uploads;
+    if (uploadState && uploadState.cancel) {
+        uploadState.cancel(reason);
+        mutations.uploadCanceled({id});
+    }
+}, 'uploadDocumentsCancel');
+
+export const actions = {
+    load: loadAction,
+    refresh: refreshAction,
+    uploadDocuments: uploadDocumentsAction,
+    cancelUpload: cancelUploadDocumentsAction
 };
 
 export const get = {
     corpora: b.read(state => state.corpora, 'getCorpora'),
     networkError: b.read(state => state.error, 'getCorporaError'),
+    uploads: b.read(state => state.uploads, 'getCorporaUploads'),
 };
 
 export default () => {/**/};

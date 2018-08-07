@@ -22,7 +22,8 @@
       "es2017",
       "dom",
       "dom.iterable",
-      "scripthost"
+      "scripthost",
+      "es2018.promise"
     ]
   },
   "include": [

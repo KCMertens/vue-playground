@@ -7,7 +7,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import {getStoreBuilder} from 'vuex-typex';
 
-import corporaModule, {CorporaState, actions as corporaActions} from '@/store/corporastore';
+import corporaModule, {CorporaState} from '@/store/corporastore';
 import appModule, {AppState, actions as appActions} from '@/store/appstore';
 
 Vue.use(Vuex);
