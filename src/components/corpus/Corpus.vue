@@ -21,19 +21,19 @@
                 :disabled="!canUpload"
                 :class="[{'active': isUploadOpen}, 'fa fa-cloud-upload-alt']" 
                 :title="`Add new data to the '${corpus.shortId}' corpus`"
-                @click="toggleUpload"
+                @click="toggleUpload(undefined)"
                 />
             <button type="button" 
                 :disabled="!canShare"
                 :class="[{'active': isShareOpen}, 'fa fa-user-plus']"
                 :title="`Share the '${corpus.shortId}' corpus with others`"
-                @click="toggleShare"
+                @click="toggleShare(undefined)"
                 />
             <button type="button" 
                 :disabled="!canDelete"
                 :class="[{'active': isDeleteOpen}, 'fa fa-times']"
                 :title="`Delete the '${corpus.shortId}' corpus'`"
-                @click="toggleDelete"
+                @click="toggleDelete(undefined)"
                 />
         </template>
     </div>
@@ -45,12 +45,11 @@
         <file-input ref="meta"/>
         <button @click="uploadCommit">upload</button>
 
-        <Error :error="uploadState.error"/>
-        <!-- <button>clear (TODO)</button> -->
+        <button @click="$refs.docs.clear(), $refs.meta.clear()">clear files</button>
     </div>
 
     <!-- TODO isUploading isIndexing -->
-    <div class="upload-progress" v-if="uploadState.progress != null">
+    <div class="upload-progress" v-if="uploadState.progress != null && (uploadState.progress !== 100 || corpus.indexProgress == null)">
         <div style="text-align:center;">upload progress panel</div>
         <div :style="{'width': uploadState.progress + '%', 'background': 'hsl(225, 100%, 90%)'}" class="progress">
             Uploading... ({{uploadState.progress}}%)
@@ -71,7 +70,21 @@
 
     <div class="delete-config" v-if="isDeleteOpen">
         <div style="text-align:center;">delete config panel</div>
+        <button class="fa fa-times"></button>
     </div>
+
+    <MessageBox v-if="errorMsg"
+        class="error"   
+        :title="errorMsg.title"         
+        :message="errorMsg.message"         
+        :dismiss="clearError" 
+    />
+    <MessageBox v-if="successMsg"
+        class="success" 
+        :title="successMsg.status.code" 
+        :message="successMsg.status.message" 
+        :dismiss="clearSuccess" 
+    />
 </div>
 
 </template>
@@ -85,17 +98,18 @@ import {formatNumber} from '@/utils/utils';
 import {blacklab as BLApi} from '@/api';
 import * as corporaStore from '@/store/corporastore';
 
-import Upload from '@/components/corpus/Upload.vue';
-import Error from '@/components/Error.vue';
+// import Error from '@/components/Error.vue';
+// import Success from '@/components/Success.vue';
 import FileInput from '@/components/FileInput.vue';
+import MessageBox from '@/components/MessageBox.vue';
 
 type test = typeof FileInput;
 
 export default Vue.extend({
     name: 'Corpus',
     components: {
-        Upload,
-        Error,
+        MessageBox,
+        // Success,
         FileInput,
     },
     props: {
@@ -103,23 +117,20 @@ export default Vue.extend({
         uploadState: Object as () => corporaStore.CorporaState['uploads'][string]
     },
     data: () => ({
-        currentState: null as string|null,
+        currentPanel: null as string|null,
 
         /** currently displayed error */
-        error: null as ApiError|null,
+        errorMsg: null as ApiError|null,
         /** currently displayed success */
-        success: null as BLTypes.BLResponse|null,
+        successMsg: null as BLTypes.BLResponse|null,
     }),
     computed: {
         isPrivate(): boolean    { 
             return this.corpus.shortId !== this.corpus.id; 
         },
         
-        
         href(): string          { return 'todo'; },
         sizeText(): string      { return formatNumber(this.corpus.tokenCount); },
-        
-        // isBusy(): boolean       { return this.corpus.status !== 'available' && this.corpus.status !== 'empty'; },
         statusText(): string    { 
             const {indexProgress: p} = this.corpus;
             
@@ -136,25 +147,44 @@ export default Vue.extend({
         canSearch(): boolean { 
             return this.corpus.status === 'available'; 
         },
-        isUploadOpen(): boolean { return this.currentState === 'upload' && this.canUpload; },
+        isUploadOpen(): boolean { return this.currentPanel === 'upload' && this.canUpload; },
         canUpload(): boolean {
             return this.isPrivate 
                 && this.uploadState.progress == null 
                 && this.corpus.indexProgress == null;
         },
-        isDeleteOpen(): boolean { return this.currentState === 'delete' && this.canDelete; },
+        isDeleteOpen(): boolean { return this.currentPanel === 'delete' && this.canDelete; },
         canDelete(): boolean {
             return this.isPrivate 
                 && this.uploadState.progress == null 
                 && this.corpus.indexProgress == null;
             // && !isDeleting
         },
-        isShareOpen(): boolean { return this.currentState === 'share' && this.canShare; },
+        isShareOpen(): boolean { return this.currentPanel === 'share' && this.canShare; },
         canShare(): boolean {
             return true;
         }
     },
     methods: {
+        error(payload: ApiError) {
+            this.successMsg = null;
+            this.errorMsg = payload;
+        },
+        success(payload: BLTypes.BLResponse) {
+            this.errorMsg = null;
+            this.successMsg = payload;
+        },
+        clearError() {
+            this.errorMsg = null;
+        },
+        clearSuccess() {
+            this.successMsg = null;
+        },
+        clearStatus() {
+            this.clearError();
+            this.clearSuccess();
+        },
+        
         uploadCommit(): void {
             if (this.uploadState.progress != null || this.corpus.indexProgress != null) {
                 return;
@@ -166,16 +196,22 @@ export default Vue.extend({
             const mf = meta.getFiles();
 
             if (df == null || df.length === 0) {
-                this.error = new ApiError('Cannot upload', 'You need to select some documents first.', '');
+                this.error(new ApiError(
+                    'Cannot upload', 
+                    'You need to select some documents first.', 
+                    ''
+                ));
                 return;
             }
             
+            this.clearStatus();
             corporaStore.actions.uploadDocuments({
                 id: this.corpus.id, 
                 docs: df, 
                 meta: mf
-            });
-            // keep panel state so we can choose to restore it after we're done uploading 
+            })
+            .then(this.success, this.error)
+            .finally(() => this.toggleUpload(true));
         },
         uploadCancel() {
             if (this.uploadState.cancel) {
@@ -197,25 +233,34 @@ export default Vue.extend({
         // ------------
         // View methods
         // ------------
-        toggleUpload() {
-            if (this.currentState === 'upload') {
-                this.currentState = null;
-            } else if (this.canUpload) {
-                this.currentState = 'upload';
+        toggleUpload(state?: boolean) {
+            if (state == null) {
+                state = this.currentPanel !== 'upload';
+            }
+            if (state && this.canUpload) {
+                this.currentPanel = 'upload';
+            } else if (!state && this.currentPanel === 'upload') {
+                this.currentPanel = null;
             }
         },
-        toggleDelete() {
-            if (this.currentState === 'delete') {
-                this.currentState = null;
-            } else if (this.canDelete) {
-                this.currentState = 'delete';
+        toggleDelete(state?: boolean) {
+            if (state == null) {
+                state = this.currentPanel !== 'delete';
+            }
+            if (state && this.canDelete) {
+                this.currentPanel = 'delete';
+            } else if (!state && this.currentPanel === 'delete') {
+                this.currentPanel = null;
             }
         },
-        toggleShare() {
-            if (this.currentState === 'share') {
-                this.currentState = null;
-            } else if (this.canShare) {
-                this.currentState = 'share';
+        toggleShare(state?: boolean) {
+            if (state == null) {
+                state = this.currentPanel !== 'share';
+            }
+            if (state && this.canShare) {
+                this.currentPanel = 'share';
+            } else if (!state && this.currentPanel === 'share') {
+                this.currentPanel = null;
             }
         },
     }
@@ -250,4 +295,59 @@ button.active {
 .progress {
     white-space: nowrap;
 }
+
+// @mixin color($base) {
+//     background: $base;
+//     border-color: change-color($base, $lightness: 0.5*lightness($base));
+//     background: linear-gradient(
+//         to bottom, 
+//         change-color($base, $lightness: 1.25*lightness($base))  0%, 
+//         $base                                   45%, 
+//         change-color($base, $lightness: 0.85*lightness($base))  100%
+//     );
+//     color: scale-color($base, $lightness: 95%);
+// }
+
+// .corpus {
+//     & >>> .error, 
+//     & >>> .success {
+//         border-width: 1px;
+//         border-style: solid;
+//         // TODO mixin inset box-shadow strong
+//         box-shadow: inset 0px 3px 6px 0px rgba(0,0,0,0.4);
+//         color: #e8e8e8;
+//         text-shadow: 1px 1px 3px black;
+
+//         /deep/ .title {
+//             padding: 8px 12px 4px;
+//             border-bottom: 1px solid;
+//             border-color: inherit;
+//             background-color: rgba(0,0,0,0.25);
+//             // TODO mixin outset box-shadow subtle
+//             box-shadow: 0px 1px 3px -1px rgba(0,0,0,0.2);
+//             display: flex;
+//             justify-content: space-between;
+//             align-items: center;
+//         }
+//         /deep/ .message {
+//             padding: 12px 12px 15px;
+//         }
+
+//         /deep/ .dismiss {
+//             background: none;
+//             border: 1px solid;
+//             border-radius: 100px;
+//             box-sizing: content-box;
+//             color: inherit;
+//             cursor: pointer;
+//             font-size: 100%;
+//             height: 1em;
+//             padding: 0;
+//             width: 1em;
+//         }
+//     }
+//     .error { @include color(hsl(355, 90%, 26%)); }
+//     .success { @include color(hsl(115, 90%, 26%)); }
+// }
+
 </style>

@@ -32,7 +32,7 @@ export default Vue.extend({
     },
     methods: {
         clear() {
-            (this.$refs.input as HTMLInputElement).files = null;
+            (this.$refs.input as HTMLInputElement).value = '';
             this.change();
         },
         change() {

@@ -1,6 +1,8 @@
 export interface BLResponse {
-    code: string;
-    message: string;
+    status: {
+        code: string;
+        message: string;
+    };
 }
 
 export interface BLError {

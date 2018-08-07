@@ -81,7 +81,7 @@ export const blacklab = {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
-                onUploadProgress: event => {
+                onUploadProgress: (event: ProgressEvent) => {
                     if (onProgress) {
                         onProgress(event.loaded / event.total * 100);
                     }
