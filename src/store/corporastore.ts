@@ -10,8 +10,6 @@ import * as BLTypes from '@/types/blacklabtypes';
 export interface CorporaState {
     /** Complete list of all corpora. Null when uninitialized. May be stale when error occurred. */
     corpora: NormalizedIndex[]|null;
-    /** Any error encountered loading the list of corpora, null when last request was successful. */
-    error: ApiError|null;
     uploads: {
         /** Keyed by full corpus id */
         [key: string]: {
@@ -28,7 +26,6 @@ export interface CorporaState {
 }
 const initialState: CorporaState = {
     corpora: null,
-    error: null,
     uploads: {},
 };
 
@@ -42,7 +39,6 @@ const b = getStoreBuilder<RootState>().module('corpora', initialState);
 const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
         state.corpora = payload;
-        state.error = null;
 
         // Remove upload state for deleted corpora, init upload state for new corpora
         const oldUploads = state.uploads;
@@ -65,7 +61,6 @@ const mutations = {
         const i = state.corpora.findIndex(c => c.id === payload.id);
         i !== -1 ? state.corpora.splice(i, 1, payload) : state.corpora.push(payload);
     }, 'setCorpus'),
-    error: b.commit((state, payload: ApiError|null) => state.error = payload, 'setCorporaError'),
     
 
     // Uploads
@@ -125,14 +120,14 @@ const loadAction = b.dispatch(() => {
         }   
     }));
 
-    mutations.error(null);
-    req.then(mutations.corpora, mutations.error);
+    req.then(mutations.corpora);
+    return req;
 }, 'load');
 
 
 const refreshAction = b.dispatch((context, {id}: {id: string}) => {
     if (refreshes[id]) {
-        return;
+        return refreshes[id]!;
     }
     const request = refreshes[id] = Api.blacklab.getCorpus(id);
 
@@ -147,11 +142,8 @@ const refreshAction = b.dispatch((context, {id}: {id: string}) => {
         if (corpus.indexProgress) {
             actions.refresh({id});
         }
-    })
-    .catch(e => { 
-        console.log('error when refreshing corpus ' + id, e); 
-        mutations.error(e); 
     });
+    return request;
 }, 'refresh');
 
 const uploadDocumentsAction = b.dispatch(async (
@@ -170,17 +162,6 @@ const uploadDocumentsAction = b.dispatch(async (
     
     request.finally(() => mutations.uploadComplete({id}));
     return request;
-    
-    // .then(({request, cancel}) => {
-
-    //     request
-    //     .finally()
-    //     .then(response => mutations.uploadComplete({id, response}))
-    //     .catch(error => {
-    //         console.log('error during upload to corpus ' + id, error);
-    //         mutations.uploadError({id, error});
-    //     });
-    // });
 }, 'uploadDocuments');
 
 const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id: string, reason?: string}) => {
@@ -191,6 +172,10 @@ const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id:
     }
 }, 'uploadDocumentsCancel');
 
+const loadSharesActions = b.dispatch((context, {id}: {id: string}) => {
+//
+}, 'loadShares')
+
 export const actions = {
     load: loadAction,
     refresh: refreshAction,
@@ -200,7 +185,6 @@ export const actions = {
 
 export const get = {
     corpora: b.read(state => state.corpora, 'getCorpora'),
-    networkError: b.read(state => state.error, 'getCorporaError'),
     uploads: b.read(state => state.uploads, 'getCorporaUploads'),
 };
 

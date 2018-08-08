@@ -21,24 +21,30 @@
 <script lang="ts">
 import Vue from 'vue';
 
+import {ApiError} from '@/types/apptypes';
+
 import MessageBox from '@/components/MessageBox.vue';
 import Corpus from '@/components/corpus/Corpus.vue';
 import * as corporaStore from '@/store/corporastore';
 
 export default Vue.extend({
     name: 'Corpora',
+    data: () => ({
+        error: null as ApiError|null,
+    }),
     components: {
         MessageBox,
         Corpus,
     },
     computed: {
         corpora: corporaStore.get.corpora,
-        error: corporaStore.get.networkError,
         uploads: corporaStore.get.uploads
     },
     methods: {
         reload(): void {
-            corporaStore.actions.load();
+            this.error = null;
+            corporaStore.actions.load()
+            .catch(e => this.error = e);
         }
     },
     created() {

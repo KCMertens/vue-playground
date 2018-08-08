@@ -4,7 +4,11 @@
             <span class="title">{{title}}</span>
             <button type="button" v-if="dismiss" class="dismiss fa fa-times" @click="dismiss"></button>
         </div>
-        <div class="body">{{message}}</div>
+        <div class="body">
+            <span class="message">{{message}}</span>
+            <button type="button" v-if="retry" class="retry" @click="retry">retry</button>
+        </div>
+
     </div>
 </template>
 
@@ -17,6 +21,7 @@ export default Vue.extend({
         title: String,
         message: String,
         dismiss: Function as () => void,
+        retry: Function as () => void,
     },
 });
 </script>
@@ -65,6 +70,10 @@ $colors: (
     padding: 25px 15px 15px;
     white-space: pre-wrap;
     word-wrap: break-word;
+}
+
+.message {
+    display: block;
 }
 
 @function brightness($color) {
