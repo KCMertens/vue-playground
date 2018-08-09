@@ -44,6 +44,9 @@ export interface BLUser {
     canCreateIndex: boolean;
 }
 
+/** Info about users an index is shared with, entries are usernames */
+export type BLShareInfo = string[];
+
 export interface BLCacheStatus {
     maxSizeBytes: number;
     maxNumberOfSearches: number;
@@ -62,3 +65,4 @@ export interface BLServer {
     helpPageUrl: string;
     cacheStatus?: BLCacheStatus; 
 }
+

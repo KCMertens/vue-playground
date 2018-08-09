@@ -38,7 +38,7 @@ export default Vue.extend({
     },
     computed: {
         corpora: corporaStore.get.corpora,
-        uploads: corporaStore.get.uploads
+        uploads: corporaStore.get.uploads,
     },
     methods: {
         reload(): void {

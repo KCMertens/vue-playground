@@ -101,5 +101,17 @@ export function createEndpoint(options: AxiosRequestConfig) {
             .then(r => r.data)
             .catch(handleError);
         },
+        delete<T>(url: string, data?: any, config?: AxiosRequestConfig) {
+            // Need to use the generic .request function because .delete 
+            // returns a void promise by design, yet blacklab sends response bodies
+            return endpoint.request<T>({
+                ...config,
+                method: 'DELETE',
+                url,
+            })
+            .then(delayResponse, delayError)
+            .then(r => r.data)
+            .catch(handleError);
+        }
     };
 }

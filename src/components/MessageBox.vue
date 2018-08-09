@@ -84,40 +84,19 @@ $colors: (
   @return if($value > $max, $max, if($value < $min, $min, $value));
 }
 
-@function textcolor($bg) {
-    
-    @if (brightness($bg) >= 50%) {
-        @return change-color($bg, $lightness: -90);
-    }
-    @return change-color($bg, $lightness: 90);
-}
-
 @each $class, $color in $colors {
     $l: lightness($color);
     
     .messagebox.#{$class} {
         background: $color;
-        border-color: change-color($color, $lightness: 0.5*$l);
+        border-color: scale-color($color, $lightness: -50%);
         background: linear-gradient(
             to bottom, 
-            change-color($color, $lightness: 1.25*$l)    0%, 
-            $color                                       45%, 
-            change-color($color, $lightness: 0.85*$l)    100%
+            change-color($color, $lightness: clamp(1.25*$l, 0, 100))    0%, 
+            $color                                                      45%, 
+            change-color($color, $lightness: clamp(0.85*$l, 0, 100))    100%
         );
         color: scale-color($color, $lightness: if($l >= 50%, -92%, 92%)) 
     }
 }
-
-// @mixin color($base) {
-//     background: $base;
-//     border-color: change-color($base, $lightness: 0.5*lightness($base));
-//     background: linear-gradient(
-//         to bottom, 
-//         change-color($base, $lightness: 1.25*lightness($base))  0%, 
-//         $base                                                   45%, 
-//         change-color($base, $lightness: 0.85*lightness($base))  100%
-//     );
-//     color: scale-color($base, $lightness: 95%);
-// }
-
 </style>

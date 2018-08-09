@@ -17,11 +17,7 @@ export interface CorporaState {
             progress: number|null;
             /** Cancel an ongoing upload, null if no upload in progress */
             cancel: Canceler|null;
-            /** Error returned by the last attempted upload, null if upload was successful */
-            // error: ApiError|null;
-            // /** Response returned by the last attempted upload, null upload was unsuccessful */
-            // response: BLTypes.BLResponse|null;
-        };
+        }; // Object always exists for corpora that exist
     };
 }
 const initialState: CorporaState = {
@@ -40,18 +36,15 @@ const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
         state.corpora = payload;
 
-        // Remove upload state for deleted corpora, init upload state for new corpora
+        // Remove external data for deleted corpora, init external data for new corpora
         const oldUploads = state.uploads;
         state.uploads = payload.reduce((newUploads, index) => {
             newUploads[index.id] = oldUploads[index.id] || {
                 progress: null,
-                error: null,
-                response: null,
                 cancel: null,
             };
             return newUploads;
         }, {} as CorporaState['uploads']);
-
     }, 'setCorpora'),
     corpus: b.commit((state, payload: NormalizedIndex) => {
         if (!state.corpora) {
@@ -61,13 +54,10 @@ const mutations = {
         const i = state.corpora.findIndex(c => c.id === payload.id);
         i !== -1 ? state.corpora.splice(i, 1, payload) : state.corpora.push(payload);
     }, 'setCorpus'),
-    
 
     // Uploads
     uploadStart: b.commit((state, payload: { id: string, cancel: Canceler}) => {
         state.uploads[payload.id] = {
-            // error: null,
-            // response: null,
             progress: 0,
             cancel: payload.cancel,
         };
@@ -80,34 +70,13 @@ const mutations = {
         }
         
     }, 'uploadProgress'),
-    // uploadError: b.commit((state, payload: {id: string, error: ApiError}) => {
-    //     state.uploads[payload.id] = {
-    //         // error: payload.error,
-    //         // response: null,
-    //         progress: null,
-    //         cancel: null,
-    //     };
-    // }, 'uploadError'),
-    // For error, success and cancellation
-    // Since the request's Promise is returned from the action, the application can access
-    // any eventual response or error directly and we don't need to save them in the store
-    uploadComplete: b.commit((state, payload: { id: string/*, response: BLTypes.BLResponse*/}) => {
+
+    uploadComplete: b.commit((state, payload: { id: string }) => {
         state.uploads[payload.id] = {
-            // response: payload.response,
-            // error: null,
             progress: null,
             cancel: null,
         };
     }, 'uploadComplete'),
-    // uploadCanceled: b.commit((state, payload: {id: string}) => {
-    //     console.log('processed cancellation');
-    //     state.uploads[payload.id] = {
-    //         // response: null,
-    //         // error: null,
-    //         progress: null,
-    //         cancel: null,
-    //     };
-    // }, 'uploadCanceled')
 };
 
 
@@ -143,6 +112,7 @@ const refreshAction = b.dispatch((context, {id}: {id: string}) => {
             actions.refresh({id});
         }
     });
+
     return request;
 }, 'refresh');
 
@@ -172,15 +142,23 @@ const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id:
     }
 }, 'uploadDocumentsCancel');
 
-const loadSharesActions = b.dispatch((context, {id}: {id: string}) => {
-//
-}, 'loadShares')
+
+const deleteIndexAction = b.dispatch((context, {id}: {id: string}) => {
+    const request = Api.blacklab.deleteIndex(id);
+    request.then(() => {
+        const oldCorpora = context.state.corpora;
+        if (oldCorpora) {
+            mutations.corpora(oldCorpora.filter(c => c.id !== id));
+        }
+    });
+}, 'deleteIndex');
 
 export const actions = {
     load: loadAction,
     refresh: refreshAction,
     uploadDocuments: uploadDocumentsAction,
-    cancelUpload: cancelUploadDocumentsAction
+    cancelUpload: cancelUploadDocumentsAction,
+    deleteCorpus: deleteIndexAction
 };
 
 export const get = {

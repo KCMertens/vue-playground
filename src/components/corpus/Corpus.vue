@@ -39,8 +39,9 @@
     </div>
 
     <div class="upload-config" v-show="isUploadOpen">
+        <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleUpload(false)"></button>   
         <div style="text-align:center;">upload config panel</div>
-       
+
         <file-input ref="docs"/>
         <file-input ref="meta"/>
         <button @click="uploadCommit">upload</button>
@@ -59,18 +60,41 @@
     </div>
     <div class="index-progress" v-if="corpus.indexProgress != null">
         <div style="text-align:center;">index progress panel</div>
-
+        
         Indexing...<br/>
         {{`${corpus.indexProgress.filesProcessed} files, ${corpus.indexProgress.docsDone} docs, ${corpus.indexProgress.tokensProcessed} tokens processed.`}}
     </div>
 
     <div class="share-config" v-if="isShareOpen">
+        <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleShare(false)"></button>   
         <div style="text-align:center;">share config panel</div>
+
+
+        <div v-if="!shareInfo && this.shareInfoLoading">Loading...</div>
+        <div v-else-if="shareInfo">
+            <div v-for="(share, index) in shareInfo" :key="index">
+                <input type="text" :disabled="shareInfoLoading" v-model="share.value" @change="shareInfoEdited = true"/>
+                <button class="fa fa-times" type="button" :disabled="shareInfoLoading" @click="shareInfo.splice(index, 1)"></button>
+            </div>
+
+            <div class="sharecontrols">
+                <button type="button" :disabled="shareInfoLoading" @click="shareInfo.push({value: ''})" class="fa fa-plus"/>
+                <button type="button" :disabled="shareInfoLoading || !shareInfo.length" @click="shareInfo.splice(0)">remove all</button>
+                <button type="button" :disabled="shareInfoLoading" @click="shareReload">undo unsaved changes</button>
+
+                <button type="button" :disabled="shareInfoLoading || !shareInfoEdited" @click="shareCommit">save changes</button>
+            </div>
+        </div>
     </div>
 
     <div class="delete-config" v-if="isDeleteOpen">
+        <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleDelete(false)"></button>   
         <div style="text-align:center;">delete config panel</div>
-        <button class="fa fa-times"></button>
+
+        Are you sure you want to delete the '{{corpus.shortId}}' corpus?<br>
+        <button @click="deleteCommit">OK</button>
+        <button @click="toggleDelete(false)">Cancel</button>
+    
     </div>
 
     <MessageBox v-if="errorMsg"
@@ -95,40 +119,39 @@ import Vue, {VueConstructor} from 'vue';
 import {NormalizedIndex, ApiError} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import {formatNumber} from '@/utils/utils';
-import {blacklab as BLApi} from '@/api';
+import * as api from '@/api';
 import * as corporaStore from '@/store/corporastore';
 
-// import Error from '@/components/Error.vue';
-// import Success from '@/components/Success.vue';
 import FileInput from '@/components/FileInput.vue';
 import MessageBox from '@/components/MessageBox.vue';
-
-type test = typeof FileInput;
 
 export default Vue.extend({
     name: 'Corpus',
     components: {
         MessageBox,
-        // Success,
         FileInput,
     },
     props: {
         corpus: Object as () => NormalizedIndex,
-        uploadState: Object as () => corporaStore.CorporaState['uploads'][string]
+        uploadState: Object as () => corporaStore.CorporaState['uploads'][string],
     },
     data: () => ({
-        currentPanel: null as string|null,
+        /** Editable instance of user shares */
+        shareInfo: null as Array<{value: string}>|null,
+        /** Are shares currently loading or saving */
+        shareInfoLoading: false,
+        /** Has the user edited the shares (e.g. enable the reload/save buttons) */
+        shareInfoEdited: false,
 
+        currentPanel: null as string|null,
         /** currently displayed error */
         errorMsg: null as ApiError|null,
         /** currently displayed success */
         successMsg: null as BLTypes.BLResponse|null,
     }),
     computed: {
-        isPrivate(): boolean    { 
-            return this.corpus.shortId !== this.corpus.id; 
-        },
-        
+        // Rendering helpers
+        isPrivate(): boolean    { return this.corpus.shortId !== this.corpus.id; },
         href(): string          { return 'todo'; },
         sizeText(): string      { return formatNumber(this.corpus.tokenCount); },
         statusText(): string    { 
@@ -143,47 +166,36 @@ export default Vue.extend({
             }
             return text;
         },
-
-        canSearch(): boolean { 
-            return this.corpus.status === 'available'; 
-        },
         isUploadOpen(): boolean { return this.currentPanel === 'upload' && this.canUpload; },
+        isDeleteOpen(): boolean { return this.currentPanel === 'delete' && this.canDelete; },
+        isShareOpen(): boolean { return this.currentPanel === 'share' && this.canShare; },
+
+        // State helpers
+        canSearch(): boolean { 
+            return this.corpus.status === 'available';
+        },
         canUpload(): boolean {
             return this.isPrivate 
                 && this.uploadState.progress == null 
                 && this.corpus.indexProgress == null;
         },
-        isDeleteOpen(): boolean { return this.currentPanel === 'delete' && this.canDelete; },
         canDelete(): boolean {
             return this.isPrivate 
                 && this.uploadState.progress == null 
                 && this.corpus.indexProgress == null;
             // && !isDeleting
         },
-        isShareOpen(): boolean { return this.currentPanel === 'share' && this.canShare; },
         canShare(): boolean {
             return true;
-        }
+        },
+
     },
     methods: {
-        error(payload: ApiError) {
-            this.successMsg = null;
-            this.errorMsg = payload;
-        },
-        success(payload: BLTypes.BLResponse) {
-            this.errorMsg = null;
-            this.successMsg = payload;
-        },
-        clearError() {
-            this.errorMsg = null;
-        },
-        clearSuccess() {
-            this.successMsg = null;
-        },
-        clearStatus() {
-            this.clearError();
-            this.clearSuccess();
-        },
+        error(payload: ApiError) { this.successMsg = null; this.errorMsg = payload; },
+        success(payload: BLTypes.BLResponse) { this.errorMsg = null; this.successMsg = payload; },
+        clearError() { this.errorMsg = null; },
+        clearSuccess() { this.successMsg = null; },
+        clearStatus() { this.clearError(); this.clearSuccess(); },
         
         uploadCommit(): void {
             if (this.uploadState.progress != null || this.corpus.indexProgress != null) {
@@ -224,11 +236,43 @@ export default Vue.extend({
                     console.log('context: ', this.uploadState.progress);
                 });
 
-                // console.log('immediately after cancel: ', this.uploadState, this.corpus);
             }
         },
 
+        shareCommit() {
+            if (this.shareInfoLoading) {
+                return;
+            }
 
+            this.shareInfoLoading = true;
+            api.blacklab
+            .postShares(this.corpus.id, this.shareInfo!.map(i => i.value))
+            .then(response => {
+                this.success(response);
+                this.shareInfoEdited = false;
+            })
+            .catch(this.error)
+            .finally(() => this.shareInfoLoading = false);
+        },
+        shareReload() {
+            if (this.shareInfoLoading) {
+                return;
+            }
+
+            this.shareInfoLoading = true;
+            api.blacklab
+            .getShares(this.corpus.id)
+            .then(shares => {
+                this.shareInfo = shares.map(s => ({ value: s }));
+                this.shareInfoEdited = false;
+            })
+            .catch(this.error)
+            .finally(() => this.shareInfoLoading = false);
+        },
+
+        deleteCommit() {
+            corporaStore.actions.deleteCorpus({id: this.corpus.id});
+        },
 
         // ------------
         // View methods
@@ -254,11 +298,17 @@ export default Vue.extend({
             }
         },
         toggleShare(state?: boolean) {
+            // Load shares from store if not done
+            // If not present, get from api, then load here
             if (state == null) {
                 state = this.currentPanel !== 'share';
             }
+            
             if (state && this.canShare) {
                 this.currentPanel = 'share';
+                if (!this.shareInfo) {
+                   this.shareReload();
+                }
             } else if (!state && this.currentPanel === 'share') {
                 this.currentPanel = null;
             }
