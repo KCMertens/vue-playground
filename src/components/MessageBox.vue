@@ -67,7 +67,7 @@ $colors: (
 }
 
 .body {
-    padding: 25px 15px 15px;
+    padding: 15px 12px 10px;
     white-space: pre-wrap;
     word-wrap: break-word;
 }

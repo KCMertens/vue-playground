@@ -7,26 +7,32 @@ import {RootState} from '@/store';
 import { NormalizedIndex, ApiError } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 
-export interface CorporaState {
-    /** Complete list of all corpora. Null when uninitialized. May be stale when error occurred. */
-    corpora: NormalizedIndex[]|null;
-    uploads: {
-        /** Keyed by full corpus id */
-        [key: string]: {
-            /** Null unless an upload is currently ongoing */
-            progress: number|null;
-            /** Cancel an ongoing upload, null if no upload in progress */
-            cancel: Canceler|null;
-        }; // Object always exists for corpora that exist
-    };
-}
-const initialState: CorporaState = {
-    corpora: null,
-    uploads: {},
+export type UploadState = {
+    request: Promise<BLTypes.BLResponse>;
+    /** Null unless an upload is currently ongoing */
+    progress: number;
+    /** Cancel an ongoing upload, null if no upload in progress */
+    cancel: Canceler;
 };
 
-/** Ongoing requests for corpora, so we don't launch refreshes for the same corpus twice */
-const refreshes: {[key: string]: Promise<NormalizedIndex>|undefined} = {};
+export type CorporaState = {
+    /** Have we attempted to load the initial corpora at least once */
+    initialized: boolean;
+    /** All known corpora. Empty when uninitialized. May be stale when last request failed. */
+    corpora: {
+        [key: string]: {
+            index: NormalizedIndex;
+            upload: UploadState|null;
+            refresh: Promise<NormalizedIndex>|null;
+            // structure: BlTypes.IndexStructure; T0D0
+        }|null;
+    };
+};
+
+const initialState: CorporaState = {
+    initialized: false,
+    corpora: {},
+};
 
 // Same store builder instance as used by root store, so no 
 // need to explicitly register the module. anywhere
@@ -34,59 +40,73 @@ const b = getStoreBuilder<RootState>().module('corpora', initialState);
 
 const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
-        state.corpora = payload;
-
-        // Remove external data for deleted corpora, init external data for new corpora
-        const oldUploads = state.uploads;
-        state.uploads = payload.reduce((newUploads, index) => {
-            newUploads[index.id] = oldUploads[index.id] || {
-                progress: null,
-                cancel: null,
+        const oldCorpora = state.corpora;
+        const newCorpora = {} as typeof state.corpora;
+        
+        payload.forEach(index => {
+            newCorpora[index.id] = {
+                // init all fields in case there's no index by this name in the previous state
+                upload: null,
+                refresh: null,
+                // Overwrite the initialized fields 
+                ...oldCorpora[index.id],
+                index
             };
-            return newUploads;
-        }, {} as CorporaState['uploads']);
+        });
+        // Replace the entire corpora object to get rid of removed corpora
+        state.initialized = true;
+        state.corpora = newCorpora;
     }, 'setCorpora'),
     corpus: b.commit((state, payload: NormalizedIndex) => {
-        if (!state.corpora) {
-            state.corpora = [];
-        }
-        // Can't use corpora[index] = {...}, see https://vuejs.org/2016/02/06/common-gotchas/
-        const i = state.corpora.findIndex(c => c.id === payload.id);
-        i !== -1 ? state.corpora.splice(i, 1, payload) : state.corpora.push(payload);
+        state.corpora[payload.id] = {
+             // init all fields in case there's no index by this name in the previous state
+             upload: null,
+             refresh: null,
+             // Overwrite the initialized fields 
+            ...state.corpora[payload.id],
+            index: payload
+        };
     }, 'setCorpus'),
+    refreshStart: b.commit((state, {id, request}: {id: string, request: Promise<NormalizedIndex>}) => {
+        const info = state.corpora[id];
+        if (info) { info.refresh = request; }
+    }, 'refreshStart'),
+    refreshComplete: b.commit((state, payload: NormalizedIndex) => {
+        const info = state.corpora[payload.id];
+        if (info) { info.refresh = null; }
+    }, 'refreshComplete'),
 
     // Uploads
-    uploadStart: b.commit((state, payload: { id: string, cancel: Canceler}) => {
-        state.uploads[payload.id] = {
-            progress: 0,
-            cancel: payload.cancel,
-        };
-    }, 'startUpload'),
-    uploadProgress: b.commit((state, payload: { id: string, progress: number }) => {
-        // Sometimes an event comes in even after the upload was cancelled
-        // In this case, don't safe it.
-        if (state.uploads[payload.id].cancel) { 
-            state.uploads[payload.id].progress = payload.progress;
+    uploadStart: b.commit((state, {id, request, cancel}: 
+        { id: string, request: Promise<BLTypes.BLResponse>, cancel: Canceler}) => {
+        const info = state.corpora[id];
+        if (info) {
+            info.upload = {
+                request,
+                cancel,
+                progress: 0,
+            };
         }
-        
+    }, 'startUpload'),
+    uploadProgress: b.commit((state, {id, progress}: { id: string, progress: number }) => {
+        // Sometimes an event may come in in after the upload was cancelled
+        const info = state.corpora[id];
+        if (info && info.upload) {
+            info.upload.progress = progress;
+        }
     }, 'uploadProgress'),
-
-    uploadComplete: b.commit((state, payload: { id: string }) => {
-        state.uploads[payload.id] = {
-            progress: null,
-            cancel: null,
-        };
+    uploadComplete: b.commit((state, {id}: { id: string }) => {
+        const info = state.corpora[id];
+        if (info) { info.upload = null; }
     }, 'uploadComplete'),
 };
-
-
 
 const loadAction = b.dispatch(() => {
     const req = Api.blacklab.getCorpora();
     req.then(corpora => corpora.forEach(c => {
         if (c.indexProgress) {
             refreshAction({id: c.id});
-        }   
+        }
     }));
 
     req.then(mutations.corpora);
@@ -95,24 +115,15 @@ const loadAction = b.dispatch(() => {
 
 
 const refreshAction = b.dispatch((context, {id}: {id: string}) => {
-    if (refreshes[id]) {
-        return refreshes[id]!;
+    const info = context.state.corpora[id];
+    if (info && info.refresh) {
+        return info.refresh;
     }
-    const request = refreshes[id] = Api.blacklab.getCorpus(id);
 
-    request.finally(() => { // clear the now fulfilled request first
-        if (refreshes[id] === request) {
-            delete refreshes[id];
-        }
-    });
-
-    request.then(corpus => { // so that we can launch a new request here if the corpus in indexing something
-        mutations.corpus(corpus);
-        if (corpus.indexProgress) {
-            actions.refresh({id});
-        }
-    });
-
+    const request = Api.blacklab.getCorpus(id);
+    mutations.refreshStart({id, request});
+    request.then(mutations.corpus);
+    request.finally(() => mutations.refreshComplete);
     return request;
 }, 'refresh');
 
@@ -128,28 +139,34 @@ const uploadDocumentsAction = b.dispatch(async (
     };
     
     const {request, cancel} = await Api.blacklab.uploadDocuments(id, docs, meta, onUploadProgress);
-    mutations.uploadStart({id, cancel});
+    mutations.uploadStart({id, request, cancel});
     
     request.finally(() => mutations.uploadComplete({id}));
     return request;
 }, 'uploadDocuments');
 
 const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id: string, reason?: string}) => {
-    const {[id]: uploadState } = context.state.uploads;
-    if (uploadState && uploadState.cancel) {
-        uploadState.cancel(reason);
+    const info = context.state.corpora[id];
+    if (info && info.upload) {
+        info.upload.cancel(reason);
         mutations.uploadComplete({id});
     }
 }, 'uploadDocumentsCancel');
 
-
 const deleteIndexAction = b.dispatch((context, {id}: {id: string}) => {
+    // TODO writing the modified list of indices marks them as initialized
+    // even if it wasn't initialized before.
+    if (!context.state.initialized) {
+        return;
+    }
+    
     const request = Api.blacklab.deleteIndex(id);
     request.then(() => {
-        const oldCorpora = context.state.corpora;
-        if (oldCorpora) {
-            mutations.corpora(oldCorpora.filter(c => c.id !== id));
-        }
+        mutations.corpora( // update corpora
+            Object.values(context.state.corpora)
+            .map(s => s!.index)  // get all current corpora
+            .filter(i => i.id !== id) // remove the deleted one
+        );
     });
 }, 'deleteIndex');
 
@@ -162,8 +179,9 @@ export const actions = {
 };
 
 export const get = {
+    initialized: b.read(state => state.initialized, 'getInitialized'),
     corpora: b.read(state => state.corpora, 'getCorpora'),
-    uploads: b.read(state => state.uploads, 'getCorporaUploads'),
+    corpus: b.read(state => (id: string) => state.corpora[id], 'getCorpus'),
 };
 
 export default () => {/**/};

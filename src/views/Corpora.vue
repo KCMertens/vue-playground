@@ -1,17 +1,18 @@
 <template>
     <div class="corpora">
-        <div v-if="!corpora && !error">
+        <div v-if="!initialized && !error">
             Loading corpora...
         </div>
-        <Corpus v-else-if="corpora" v-for="corpus in corpora" 
-            :corpus="corpus" 
-            :upload-state="uploads[corpus.id]"
-            :key="corpus.id"/>
+
+        <Corpus v-else-if="initialized" v-for="(info, id) in corpora" 
+            :corpus="info.index" 
+            :upload-state="info.upload"
+            :key="id"/>
 
         <MessageBox v-if="error"
             class="error" 
-        
             title="Could not load corpora" 
+        
             :message="error.message" 
             :retry="reload"/>
     </div>
@@ -37,8 +38,8 @@ export default Vue.extend({
         Corpus,
     },
     computed: {
+        initialized: corporaStore.get.initialized,
         corpora: corporaStore.get.corpora,
-        uploads: corporaStore.get.uploads,
     },
     methods: {
         reload(): void {
@@ -46,9 +47,6 @@ export default Vue.extend({
             corporaStore.actions.load()
             .catch(e => this.error = e);
         }
-    },
-    created() {
-        this.reload();
     },
 });
 </script>

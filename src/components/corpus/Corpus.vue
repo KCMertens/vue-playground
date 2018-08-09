@@ -50,7 +50,7 @@
     </div>
 
     <!-- TODO isUploading isIndexing -->
-    <div class="upload-progress" v-if="uploadState.progress != null && (uploadState.progress !== 100 || corpus.indexProgress == null)">
+    <div class="upload-progress" v-if="uploadState && corpus.indexProgress == null">
         <div style="text-align:center;">upload progress panel</div>
         <div :style="{'width': uploadState.progress + '%', 'background': 'hsl(225, 100%, 90%)'}" class="progress">
             Uploading... ({{uploadState.progress}}%)
@@ -133,7 +133,7 @@ export default Vue.extend({
     },
     props: {
         corpus: Object as () => NormalizedIndex,
-        uploadState: Object as () => corporaStore.CorporaState['uploads'][string],
+        uploadState: Object as () => corporaStore.UploadState|null,
     },
     data: () => ({
         /** Editable instance of user shares */
@@ -151,7 +151,7 @@ export default Vue.extend({
     }),
     computed: {
         // Rendering helpers
-        isPrivate(): boolean    { return this.corpus.shortId !== this.corpus.id; },
+        isPrivate(): boolean    { return !!this.corpus.owner; },
         href(): string          { return 'todo'; },
         sizeText(): string      { return formatNumber(this.corpus.tokenCount); },
         statusText(): string    { 
@@ -176,14 +176,11 @@ export default Vue.extend({
         },
         canUpload(): boolean {
             return this.isPrivate 
-                && this.uploadState.progress == null 
+                && this.uploadState == null
                 && this.corpus.indexProgress == null;
         },
         canDelete(): boolean {
-            return this.isPrivate 
-                && this.uploadState.progress == null 
-                && this.corpus.indexProgress == null;
-            // && !isDeleting
+            return this.canUpload; // && !isDeleting
         },
         canShare(): boolean {
             return true;
@@ -198,7 +195,7 @@ export default Vue.extend({
         clearStatus() { this.clearError(); this.clearSuccess(); },
         
         uploadCommit(): void {
-            if (this.uploadState.progress != null || this.corpus.indexProgress != null) {
+            if (!this.canUpload) {
                 return;
             }
             
@@ -226,17 +223,10 @@ export default Vue.extend({
             .finally(() => this.toggleUpload(true));
         },
         uploadCancel() {
-            if (this.uploadState.cancel) {
-                corporaStore.actions.cancelUpload({
-                    id: this.corpus.id,
-                    reason: 'Upload cancelled'
-                }).then((ret) => {
-                    console.log('after cancellation processed, got return value', ret);
-                    
-                    console.log('context: ', this.uploadState.progress);
-                });
-
-            }
+            corporaStore.actions.cancelUpload({
+                id: this.corpus.id,
+                reason: 'Upload cancelled'
+            });
         },
 
         shareCommit() {
@@ -341,63 +331,4 @@ button.active {
 .share-config {
     outline: 1px solid lightgreen;
 }
-
-.progress {
-    white-space: nowrap;
-}
-
-// @mixin color($base) {
-//     background: $base;
-//     border-color: change-color($base, $lightness: 0.5*lightness($base));
-//     background: linear-gradient(
-//         to bottom, 
-//         change-color($base, $lightness: 1.25*lightness($base))  0%, 
-//         $base                                   45%, 
-//         change-color($base, $lightness: 0.85*lightness($base))  100%
-//     );
-//     color: scale-color($base, $lightness: 95%);
-// }
-
-// .corpus {
-//     & >>> .error, 
-//     & >>> .success {
-//         border-width: 1px;
-//         border-style: solid;
-//         // TODO mixin inset box-shadow strong
-//         box-shadow: inset 0px 3px 6px 0px rgba(0,0,0,0.4);
-//         color: #e8e8e8;
-//         text-shadow: 1px 1px 3px black;
-
-//         /deep/ .title {
-//             padding: 8px 12px 4px;
-//             border-bottom: 1px solid;
-//             border-color: inherit;
-//             background-color: rgba(0,0,0,0.25);
-//             // TODO mixin outset box-shadow subtle
-//             box-shadow: 0px 1px 3px -1px rgba(0,0,0,0.2);
-//             display: flex;
-//             justify-content: space-between;
-//             align-items: center;
-//         }
-//         /deep/ .message {
-//             padding: 12px 12px 15px;
-//         }
-
-//         /deep/ .dismiss {
-//             background: none;
-//             border: 1px solid;
-//             border-radius: 100px;
-//             box-sizing: content-box;
-//             color: inherit;
-//             cursor: pointer;
-//             font-size: 100%;
-//             height: 1em;
-//             padding: 0;
-//             width: 1em;
-//         }
-//     }
-//     .error { @include color(hsl(355, 90%, 26%)); }
-//     .success { @include color(hsl(115, 90%, 26%)); }
-// }
-
 </style>
