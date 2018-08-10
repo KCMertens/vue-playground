@@ -27,7 +27,6 @@
                 @click="toggleShare(undefined)"
                 />
             <button type="button" 
-                :disabled="!canDelete"
                 :class="[{'active': isDeleteOpen}, 'fa fa-times']"
                 :title="`Delete the '${index.shortId}' corpus'`"
                 @click="toggleDelete(undefined)"
@@ -55,18 +54,14 @@
             
             @close="toggleShare(false)"
         />
-        
-        <div class="delete-config" v-if="isDeleteOpen">
-            <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleDelete(false)"></button>   
-            <div style="text-align:center;">delete config panel</div>
+        <DeleteBar 
+            :open="isDeleteOpen"
+            :id="index.id"
+            :display-name="index.shortId"
 
-            Are you sure you want to delete the '{{index.shortId}}' corpus?<br>
-            <button @click="deleteCommit">OK</button>
-            <button @click="toggleDelete(false)">Cancel</button>
-        
-        </div>
+            @close="toggleDelete(false)"
+        />
     </template>
-
 
     <MessageBox v-if="errorMsg"
         class="error"   
@@ -96,6 +91,7 @@ import * as corporaStore from '@/store/corporastore';
 import MessageBox from '@/components/MessageBox.vue';
 import UploadBar from '@/components/corpus/UploadBar.vue';
 import ShareBar from '@/components/corpus/ShareBar.vue';
+import DeleteBar from '@/components/corpus/DeleteBar.vue';
 
 export default Vue.extend({
     name: 'Corpus',
@@ -103,6 +99,7 @@ export default Vue.extend({
         MessageBox,
         UploadBar,
         ShareBar,
+        DeleteBar,
     },
     props: {
         corpus: Object as () => corporaStore.CorpusState,
@@ -136,17 +133,12 @@ export default Vue.extend({
             return text;
         },
         isUploadOpen(): boolean { return this.currentPanel === 'upload'; },
-        isDeleteOpen(): boolean { return this.currentPanel === 'delete' && this.canDelete; },
+        isDeleteOpen(): boolean { return this.currentPanel === 'delete'; },
         isShareOpen(): boolean { return this.currentPanel === 'share'; },
 
         // State helpers
         canSearch(): boolean { 
             return this.index.status === 'available';
-        },
-        canDelete(): boolean {
-            return this.isPrivate 
-                && this.upload == null
-                && this.index.indexProgress == null;
         },
     },
     methods: {
@@ -168,14 +160,8 @@ export default Vue.extend({
             this.currentPanel = !state ? (this.currentPanel === 'upload' ? null : this.currentPanel) : 'upload';
         },
         toggleDelete(state?: boolean) {
-            if (state == null) {
-                state = this.currentPanel !== 'delete';
-            }
-            if (state && this.canDelete) {
-                this.currentPanel = 'delete';
-            } else if (!state && this.currentPanel === 'delete') {
-                this.currentPanel = null;
-            }
+            state = state != null ? state : this.currentPanel !== 'delete';
+            this.currentPanel = !state ? (this.currentPanel === 'delete' ? null : this.currentPanel) : 'delete';
         },
         toggleShare(state?: boolean) {
             state = state != null ? state : this.currentPanel !== 'share';
@@ -195,9 +181,4 @@ export default Vue.extend({
 button.active {
     background-color: red;
 }
-
-.delete-config {
-    outline: 1px solid orange;
-}
-
 </style>
