@@ -4,9 +4,8 @@
             Loading corpora...
         </div>
 
-        <Corpus v-else-if="initialized" v-for="(info, id) in corpora" 
-            :corpus="info.index" 
-            :upload-state="info.upload"
+        <Corpus v-else-if="initialized" v-for="(corpus, id) in corpora" 
+            :corpus="corpus" 
             :key="id"/>
 
         <MessageBox v-if="error"
@@ -48,5 +47,15 @@ export default Vue.extend({
             .catch(e => this.error = e);
         }
     },
+    watch: {
+        initialized: {
+            immediate: true,
+            handler(newVal, oldVal) {
+                if (!newVal) {
+                    this.reload();
+                }
+            }
+        }
+    }
 });
 </script>

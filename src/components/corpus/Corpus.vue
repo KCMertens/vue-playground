@@ -4,66 +4,52 @@
     <div class="status">
         <a
             :class="['search fa fa-search', {'disabled': !canSearch}]"
-            :title="`Search the '${corpus.shortId}' corpus`"
+            :title="`Search the '${index.shortId}' corpus`"
         />
         <a
             :class="['status', {'disabled': !canSearch }]"
-            :title="`Search the '${corpus.shortId}' corpus`"
-            :href="canSearch ? href : false">{{corpus.shortId}} {{statusText}}</a>
+            :title="`Search the '${index.shortId}' corpus`"
+            :href="canSearch ? href : false">{{index.shortId}} {{statusText}}</a>
 
         <span class="size">{{sizeText}}</span>
-        <span class="format">{{corpus.documentFormat}}</span>
-        <span class="modified">{{corpus.timeModified}}</span>
+        <span class="format">{{index.documentFormat}}</span>
+        <span class="modified">{{index.timeModified}}</span>
         
         <!-- TODO disable and prevent actions while inappropriate -->
         <template v-if="isPrivate">
             <button type="button" 
-                :disabled="!canUpload"
                 :class="[{'active': isUploadOpen}, 'fa fa-cloud-upload-alt']" 
-                :title="`Add new data to the '${corpus.shortId}' corpus`"
+                :title="`Add new data to the '${index.shortId}' corpus`"
                 @click="toggleUpload(undefined)"
                 />
             <button type="button" 
                 :disabled="!canShare"
                 :class="[{'active': isShareOpen}, 'fa fa-user-plus']"
-                :title="`Share the '${corpus.shortId}' corpus with others`"
+                :title="`Share the '${index.shortId}' corpus with others`"
                 @click="toggleShare(undefined)"
                 />
             <button type="button" 
                 :disabled="!canDelete"
                 :class="[{'active': isDeleteOpen}, 'fa fa-times']"
-                :title="`Delete the '${corpus.shortId}' corpus'`"
+                :title="`Delete the '${index.shortId}' corpus'`"
                 @click="toggleDelete(undefined)"
                 />
         </template>
     </div>
 
-    <div class="upload-config" v-show="isUploadOpen">
-        <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleUpload(false)"></button>   
-        <div style="text-align:center;">upload config panel</div>
+    <UploadBar 
+        :open="isUploadOpen"
+        :id="index.id"
+        :uploadProgress="upload"
+        :indexProgress="index.indexProgress"
 
-        <file-input ref="docs"/>
-        <file-input ref="meta"/>
-        <button @click="uploadCommit">upload</button>
+        @close="toggleUpload(false)"
 
-        <button @click="$refs.docs.clear(), $refs.meta.clear()">clear files</button>
-    </div>
-
-    <!-- TODO isUploading isIndexing -->
-    <div class="upload-progress" v-if="uploadState && corpus.indexProgress == null">
-        <div style="text-align:center;">upload progress panel</div>
-        <div :style="{'width': uploadState.progress + '%', 'background': 'hsl(225, 100%, 90%)'}" class="progress">
-            Uploading... ({{uploadState.progress}}%)
-        </div>
-
-        <button @click="uploadCancel" class="fa fa-times" :disabled="!uploadState.cancel"> cancel</button>
-    </div>
-    <div class="index-progress" v-if="corpus.indexProgress != null">
-        <div style="text-align:center;">index progress panel</div>
-        
-        Indexing...<br/>
-        {{`${corpus.indexProgress.filesProcessed} files, ${corpus.indexProgress.docsDone} docs, ${corpus.indexProgress.tokensProcessed} tokens processed.`}}
-    </div>
+        @begin="clearStatus"
+        @end="toggleUpload(true)"
+        @success="success"
+        @error="error"
+    />
 
     <div class="share-config" v-if="isShareOpen">
         <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleShare(false)"></button>   
@@ -91,7 +77,7 @@
         <button type="button" class="fa fa-times" title="close" style="float: right" @click="toggleDelete(false)"></button>   
         <div style="text-align:center;">delete config panel</div>
 
-        Are you sure you want to delete the '{{corpus.shortId}}' corpus?<br>
+        Are you sure you want to delete the '{{index.shortId}}' corpus?<br>
         <button @click="deleteCommit">OK</button>
         <button @click="toggleDelete(false)">Cancel</button>
     
@@ -122,18 +108,17 @@ import {formatNumber} from '@/utils/utils';
 import * as api from '@/api';
 import * as corporaStore from '@/store/corporastore';
 
-import FileInput from '@/components/FileInput.vue';
 import MessageBox from '@/components/MessageBox.vue';
+import UploadBar from '@/components/corpus/UploadBar.vue';
 
 export default Vue.extend({
     name: 'Corpus',
     components: {
         MessageBox,
-        FileInput,
+        UploadBar,
     },
     props: {
-        corpus: Object as () => NormalizedIndex,
-        uploadState: Object as () => corporaStore.UploadState|null,
+        corpus: Object as () => corporaStore.CorpusState,
     },
     data: () => ({
         /** Editable instance of user shares */
@@ -150,14 +135,18 @@ export default Vue.extend({
         successMsg: null as BLTypes.BLResponse|null,
     }),
     computed: {
+        // quick access
+        index(): NormalizedIndex { return this.corpus.index; },
+        upload(): corporaStore.UploadState|null { return this.corpus.upload; },
+        
         // Rendering helpers
-        isPrivate(): boolean    { return !!this.corpus.owner; },
+        isPrivate(): boolean    { return !!this.index.owner; },
         href(): string          { return 'todo'; },
-        sizeText(): string      { return formatNumber(this.corpus.tokenCount); },
+        sizeText(): string      { return formatNumber(this.index.tokenCount); },
         statusText(): string    { 
-            const {indexProgress: p} = this.corpus;
+            const p = this.index.indexProgress;
             
-            let text = this.canSearch ? '' : `(${this.corpus.status})`;
+            let text = this.canSearch ? '' : `(${this.index.status})`;
             if (p) {
                     text += ` - 
                     ${p.filesProcessed} files, 
@@ -166,26 +155,22 @@ export default Vue.extend({
             }
             return text;
         },
-        isUploadOpen(): boolean { return this.currentPanel === 'upload' && this.canUpload; },
+        isUploadOpen(): boolean { return this.currentPanel === 'upload'; },
         isDeleteOpen(): boolean { return this.currentPanel === 'delete' && this.canDelete; },
         isShareOpen(): boolean { return this.currentPanel === 'share' && this.canShare; },
 
         // State helpers
         canSearch(): boolean { 
-            return this.corpus.status === 'available';
-        },
-        canUpload(): boolean {
-            return this.isPrivate 
-                && this.uploadState == null
-                && this.corpus.indexProgress == null;
+            return this.index.status === 'available';
         },
         canDelete(): boolean {
-            return this.canUpload; // && !isDeleting
+            return this.isPrivate 
+                && this.upload == null
+                && this.index.indexProgress == null;
         },
         canShare(): boolean {
             return true;
         },
-
     },
     methods: {
         error(payload: ApiError) { this.successMsg = null; this.errorMsg = payload; },
@@ -193,42 +178,7 @@ export default Vue.extend({
         clearError() { this.errorMsg = null; },
         clearSuccess() { this.successMsg = null; },
         clearStatus() { this.clearError(); this.clearSuccess(); },
-        
-        uploadCommit(): void {
-            if (!this.canUpload) {
-                return;
-            }
-            
-            const docs = this.$refs.docs as any;
-            const meta = this.$refs.meta as any;
-            const df = docs.getFiles();
-            const mf = meta.getFiles();
-
-            if (df == null || df.length === 0) {
-                this.error(new ApiError(
-                    'Cannot upload', 
-                    'You need to select some documents first.', 
-                    ''
-                ));
-                return;
-            }
-            
-            this.clearStatus();
-            corporaStore.actions.uploadDocuments({
-                id: this.corpus.id, 
-                docs: df, 
-                meta: mf
-            })
-            .then(this.success, this.error)
-            .finally(() => this.toggleUpload(true));
-        },
-        uploadCancel() {
-            corporaStore.actions.cancelUpload({
-                id: this.corpus.id,
-                reason: 'Upload cancelled'
-            });
-        },
-
+      
         shareCommit() {
             if (this.shareInfoLoading) {
                 return;
@@ -236,7 +186,7 @@ export default Vue.extend({
 
             this.shareInfoLoading = true;
             api.blacklab
-            .postShares(this.corpus.id, this.shareInfo!.map(i => i.value))
+            .postShares(this.index.id, this.shareInfo!.map(i => i.value))
             .then(response => {
                 this.success(response);
                 this.shareInfoEdited = false;
@@ -251,7 +201,7 @@ export default Vue.extend({
 
             this.shareInfoLoading = true;
             api.blacklab
-            .getShares(this.corpus.id)
+            .getShares(this.index.id)
             .then(shares => {
                 this.shareInfo = shares.map(s => ({ value: s }));
                 this.shareInfoEdited = false;
@@ -261,21 +211,15 @@ export default Vue.extend({
         },
 
         deleteCommit() {
-            corporaStore.actions.deleteCorpus({id: this.corpus.id});
+            corporaStore.actions.deleteCorpus({id: this.index.id});
         },
 
         // ------------
         // View methods
         // ------------
         toggleUpload(state?: boolean) {
-            if (state == null) {
-                state = this.currentPanel !== 'upload';
-            }
-            if (state && this.canUpload) {
-                this.currentPanel = 'upload';
-            } else if (!state && this.currentPanel === 'upload') {
-                this.currentPanel = null;
-            }
+            state = state != null ? state : this.currentPanel !== 'upload';
+            this.currentPanel = !state ? (this.currentPanel === 'upload' ? null : this.currentPanel) : 'upload';
         },
         toggleDelete(state?: boolean) {
             if (state == null) {

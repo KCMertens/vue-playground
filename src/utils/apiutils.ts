@@ -20,6 +20,8 @@ export function delayError<T>(e: AxiosError): Promise<AxiosResponse<never>> {
     });
 }
 
+export function swallowError(p: any) {/**/}
+
 /**
  * Maps network error and blacklab error to ApiError.
  * For use with axios. Always returns a rejected promise containing the error.
@@ -92,14 +94,12 @@ export function createEndpoint(options: AxiosRequestConfig) {
         get<T>(url: string, config?: AxiosRequestConfig) {
             return endpoint.get<T>(url, config)
             .then(delayResponse, delayError)
-            .then(r => r.data)
-            .catch(handleError);
+            .then(r => r.data, handleError);
         },
         post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
             return endpoint.post<T>(url, data, config)
             .then(delayResponse, delayError)
-            .then(r => r.data)
-            .catch(handleError);
+            .then(r => r.data, handleError);
         },
         delete<T>(url: string, data?: any, config?: AxiosRequestConfig) {
             // Need to use the generic .request function because .delete 
@@ -110,8 +110,7 @@ export function createEndpoint(options: AxiosRequestConfig) {
                 url,
             })
             .then(delayResponse, delayError)
-            .then(r => r.data)
-            .catch(handleError);
+            .then(r => r.data, handleError);
         }
     };
 }
