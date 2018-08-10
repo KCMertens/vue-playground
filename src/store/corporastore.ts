@@ -28,7 +28,7 @@ export type CorporaState = {
     initialized: boolean;
     /** All known corpora. Empty when uninitialized. May be stale when last request failed. */
     corpora: {
-        // Never actually undefined, but aids with type checking
+        // Never actually undefined when key exists, but aids with type checking
         [key: string]: CorpusState|undefined;
     };
 };
@@ -38,6 +38,12 @@ const initialState: CorporaState = {
     corpora: {},
 };
 
+const initialCorpusState = {
+    index: null,
+    upload: null,
+    refresh: null
+};
+
 // Same store builder instance as used by root store, so no 
 // need to explicitly register the module. anywhere
 const b = getStoreBuilder<RootState>().module('corpora', initialState);
@@ -45,15 +51,15 @@ const b = getStoreBuilder<RootState>().module('corpora', initialState);
 const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
         const oldCorpora = state.corpora;
-        const newCorpora = {} as typeof state.corpora;
+        const newCorpora = {} as typeof oldCorpora;
         
         payload.forEach(index => {
             newCorpora[index.id] = {
-                // init all fields in case there's no index by this name in the previous state
-                upload: null,
-                refresh: null,
-                // Overwrite the initialized fields 
+                // Init in case it didn't exist yet
+                ...initialCorpusState,
+                // Write old state (if it existed) 
                 ...oldCorpora[index.id],
+                // Write updated fields
                 index
             };
         });
@@ -142,7 +148,7 @@ const uploadDocumentsAction = b.dispatch(async (
         }
     };
     
-    const {request, cancel} = await Api.blacklab.uploadDocuments(id, docs, meta, onUploadProgress);
+    const {request, cancel} = await Api.blacklab.postDocuments(id, docs, meta, onUploadProgress);
     mutations.uploadStart({id, request, cancel});
     request.catch(swallowError).finally(() => mutations.uploadComplete({id}));
 

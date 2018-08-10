@@ -5,10 +5,10 @@ import { RootState } from '@/store';
 
 import { ApiError, AppConfig } from '@/types/apptypes';
 
-export interface AppState {
+export type AppState = {
     appConfig: AppConfig|null;
     fatalError: ApiError|null;
-}
+};
 
 const initialState: AppState = {
     appConfig: null,

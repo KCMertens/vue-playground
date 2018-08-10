@@ -5,7 +5,7 @@ import {BLError} from '@/types/blacklabtypes';
 import {isBLError} from '@/utils/blacklabutils';
 
 const settings = {
-    delay: 2500,
+    delay: 0,
 };
 
 export function delayResponse<T>(r: AxiosResponse<T>): Promise<AxiosResponse<T>> {

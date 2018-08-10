@@ -25,6 +25,8 @@
         } 
       }
     ],
-    "eofline": false
+    "eofline": false,
+    "interface-over-type-literal": false,
+    "class-name": false
   }
 }

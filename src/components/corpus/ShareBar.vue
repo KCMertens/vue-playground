@@ -8,11 +8,11 @@
         <div v-if="users">
             <div v-for="(share, index) in users" :key="index">
                 <input type="text" 
-                    v-model="share.value" 
-                    :disabled="busy" 
+                    v-model="share.value"
+                    v-focus-on-create
+                    :disabled="busy"
                     @keydown.enter="addUser"
                     @change="changed = true"
-                    v-focus-on-create
                 />
                 <button class="fa fa-times" type="button" 
                     :disabled="busy" 
@@ -73,7 +73,7 @@ export default Vue.extend({
 
         addUser()               { if (!this.users) { return; } this.users.push({value: ''}); this.changed = true; },
         removeUser(i: number)   { if (!this.users) { return; } this.users.splice(i, 1); this.changed = true; },
-        clearUsers()            { if (!this.users) { return; } this.users = []; this.changed = true; },
+        clearUsers()            { if (!this.users) { return; } this.users = []; this.addUser(); },
 
         load() {
             if (this.busy) {
@@ -85,8 +85,9 @@ export default Vue.extend({
             .getShares(this.id)
             .then(shares => {
                 this.users = shares.map(s => ({ value: s }));
+                this.state = null; // do before adding user or focus won't shift
                 this.addUser();
-                this.changed = false;
+                this.changed = false; // undo dirty flag since this wasn't a user-generated edit
             })
             .catch(this.error)
             .finally(() => this.state = null);
@@ -118,9 +119,8 @@ export default Vue.extend({
     },
     directives: {
         focusOnCreate: {
-            inserted(el) {
-                el.focus();
-            }
+            inserted(el) { el.focus(); },
+            update(el) { el.focus(); },
         }
     }
 });

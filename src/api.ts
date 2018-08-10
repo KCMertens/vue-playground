@@ -1,11 +1,12 @@
-import axios, {AxiosRequestConfig} from 'axios';
+import axios from 'axios';
+import * as qs from 'qs';
 
 import {createEndpoint} from '@/utils/apiutils';
 
 import { AppConfig } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 
-import { normalizeIndex } from '@/utils/blacklabutils';
+import { normalizeIndex, normalizeFormat } from '@/utils/blacklabutils';
 
 
 const appEndpoint = createEndpoint({
@@ -42,11 +43,14 @@ const paths = {
         is performed by the servlet container and runs before any application code.
         So ensure our requests end with a trailing slash to prevent the server from redirecting
     */
-    root: () => './', 
-    index: (indexId: string) => `${indexId}/`,
-    indexStatus: (indexId: string) => `${indexId}/status/`,
-    documentUpload: (indexId: string) => `${indexId}/docs/`,
-    shares: (indexId: string) => `${indexId}/sharing/`,
+    root: () =>                             './', 
+    index: (indexId: string) =>             `${indexId}/`,
+    indexStatus: (indexId: string) =>       `${indexId}/status/`,
+    documentUpload: (indexId: string) =>    `${indexId}/docs/`,
+    shares: (indexId: string) =>            `${indexId}/sharing/`,
+    formats: () =>                          `input-formats/`,
+    formatContent: (id: string) =>          `input-formats/${id}/`,
+    formatXslt: (id: string) =>             `input-formats/${id}/xslt`,
 };
 
 /**
@@ -66,21 +70,18 @@ export const blacklab = {
         .get<{'users[]': BLTypes.BLShareInfo}>(paths.shares(id))
         .then(r => r['users[]']),
 
-    postShares: async (id: string, newShares: BLTypes.BLShareInfo) => (await blacklabEndpoint)
-        .post<BLTypes.BLResponse>(paths.shares(id), undefined, {
-            data: (() => {
-                const data = new FormData();
-                newShares
-                .map(user => user.trim())
-                .filter(user => user.length)
-                .forEach(user => data.append('users[]', user));
-            })(),
-        }),
+    postShares: async (id: string, users: BLTypes.BLShareInfo) => (await blacklabEndpoint)
+        .post<BLTypes.BLResponse>(paths.shares(id), 
+            // Need to manually set content-type due to long-standing axios bug
+            // https://github.com/axios/axios/issues/362
+            qs.stringify({users: users.map(u => u.trim()).filter(u => u.length)}, {arrayFormat: 'brackets'}), 
+            {headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}}
+        ),
 
     deleteIndex: async (id: string) => (await blacklabEndpoint)
         .delete<BLTypes.BLResponse>(paths.index(id)),
     
-    uploadDocuments: async (
+    postDocuments: async (
         indexId: string, 
         docs: FileList, 
         meta?: FileList|null, 
@@ -111,4 +112,23 @@ export const blacklab = {
             cancel: cancelToken.cancel
         };
     },
+
+    getFormats: async () => (await blacklabEndpoint)
+        .get<BLTypes.BLFormats>(paths.formats())
+        .then(r => Object.entries(r.supportedInputFormats))
+        .then(r => r.map(([id, format]: [string, BLTypes.BLFormat]) => normalizeFormat(id, format))),
+
+    getFormatContent: async (id: string) => (await blacklabEndpoint)
+        .get<BLTypes.BLFormatContent>(paths.formats()),
+       
+    getFormatXslt: async (id: string) => (await blacklabEndpoint)
+        .get<string>(paths.formatXslt(id)),
+
+    createFormat: async (name: string, contents: string) => {
+        const endpoint = await blacklabEndpoint;
+        const data = new FormData();
+        data.append('data', new File([contents], name, {type: 'text/plain'}), name);
+        return endpoint.post<BLTypes.BLResponse>(paths.formats(), data);
+    },
+
 };

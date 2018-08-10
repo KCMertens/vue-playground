@@ -7,15 +7,17 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import {getStoreBuilder} from 'vuex-typex';
 
-import corporaModule, {CorporaState} from '@/store/corporastore';
 import appModule, {AppState, actions as appActions} from '@/store/appstore';
+import corporaModule, {CorporaState} from '@/store/corporastore';
+import formatModule, {FormatState} from '@/store/formatstore';
 
 Vue.use(Vuex);
 
-export interface RootState {
+export type RootState = {
     app: AppState;
     corpora: CorporaState;
-}
+    formats: FormatState;
+};
 
 const b = getStoreBuilder<RootState>();
 
@@ -33,6 +35,7 @@ export const actions = {
 // Importing/using type exports also doesn't work, since those are removed by the typescript compiler before webpack.
 appModule();
 corporaModule();
+formatModule();
 
 // Initial state for modules already provided when the module was registered 
 // with this builder. So we would only have to supply our own initial state.
