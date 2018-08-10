@@ -96,7 +96,7 @@ $colors: (
             $color                                                      45%, 
             change-color($color, $lightness: clamp(0.85*$l, 0, 100))    100%
         );
-        color: scale-color($color, $lightness: if($l >= 50%, -92%, 92%)) 
+        color: scale-color($color, $lightness: if($l >= 50%, -92%, 92%));
     }
 }
 </style>

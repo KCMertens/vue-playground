@@ -1,8 +1,8 @@
-<template>
-    <div class="uploadbar">
-
-        <template v-if="open && canUpload">
-            <button type="button" class="fa fa-times" title="close" style="float: right" @click="close"></button>   
+<template >
+    <!-- use show so the file inputs preserve their state -->
+    <div class="uploadbar" v-show="open || isUploading || isIndexing">
+        <template v-show="open && canUpload"> 
+            <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
             <div style="text-align:center;">upload config panel</div>
 
             <file-input ref="docs"/>
@@ -27,10 +27,10 @@
             <div style="text-align:center;">index progress panel</div>
             {{indexProgress.filesProcessed}} files, 
             {{indexProgress.docsDone}} docs and 
-            {{indexProgress.tokensProcess}} tokens indexed so far...
+            {{indexProgress.tokensProcess}} tokens indexed so far...    
         </template>
-
     </div>
+
 </template>
 
 <script lang="ts">
@@ -93,11 +93,6 @@ export default Vue.extend({
                 e => this.$emit('error', e)
             )
             .finally(() => this.$emit('end'));
-
-            // api.blacklab.uploadDocuments(this.id, df, mf)
-            // .then(({request}) => {
-            //     request.catch(e => console.log('caught the error; does it still log?',e));
-            // })
         },
         cancel() {
             if (!this.isUploading) {
@@ -113,7 +108,12 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
+
+.uploadbar {
+    outline: 1px solid skyblue;
+}
 .progress {
     white-space: nowrap;
 }
+
 </style>

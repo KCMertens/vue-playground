@@ -132,6 +132,10 @@ const uploadDocumentsAction = b.dispatch(async (
     {id, docs, meta}: {id: string, docs: FileList, meta?: FileList|null}
 ) => {
     const onUploadProgress = (progress: number) => {
+        if (isNaN(progress)) {
+            return;
+        }
+        
         mutations.uploadProgress({id, progress});
         if (progress === 100) {
             actions.refresh({id});
