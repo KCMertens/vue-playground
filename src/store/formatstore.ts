@@ -37,6 +37,7 @@ const mutations = {
 };
 
 export const actions = {
+    init: () => {/**/}, // future use
     load: b.dispatch((context, payload) => {
         const request = api.blacklab.getFormats();
         request.then(mutations.setFormats, swallowError);
@@ -49,4 +50,4 @@ export const get = {
     formats: b.read(state => state.formats, 'getFormats'),
 };
 
-export default () => {/**/};
+// export default () => {/**/};

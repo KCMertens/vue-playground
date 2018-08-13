@@ -2,8 +2,10 @@
     <!-- use show so the file inputs preserve their state -->
     <div class="uploadbar" v-show="open || isUploading || isIndexing">
         <template v-show="open && canUpload"> 
-            <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
-            <div style="text-align:center;">upload config panel</div>
+            <div style="overflow: hidden">
+                <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
+                <div style="text-align:center;">upload config panel</div>
+            </div>
 
             <file-input ref="docs"/>
             <file-input ref="meta"/>

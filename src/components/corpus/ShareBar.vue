@@ -1,8 +1,10 @@
 <template>
 
     <div class="sharebar" v-if="open">
-        <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
-        <div style="text-align:center;">share config panel</div>
+        <div style="overflow: hidden">
+            <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
+            <div style="text-align:center;">share config panel</div>
+        </div>
 
         <div v-if="loading">Loading...</div>
         <div v-if="users">
@@ -29,9 +31,9 @@
         </div>
 
         <MessageBox v-if="errorMsg" class="error"
-            :title="errorMsg.status"
+            title="Could not load shared users"
             :message="errorMsg.message"
-            :dismiss="clearError"
+            :retry="load"
         />
     </div>
 </template>
@@ -80,6 +82,7 @@ export default Vue.extend({
                 return;
             }
 
+            this.clearError();
             this.state = 'loading';
             api.blacklab
             .getShares(this.id)
@@ -111,7 +114,7 @@ export default Vue.extend({
         open: {
             immediate: true,
             handler(newVal, oldVal) {
-                if (newVal && this.users === null) {
+                if (newVal && this.users === null && this.errorMsg == null) {
                     this.load();
                 }
             }

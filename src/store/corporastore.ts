@@ -76,6 +76,16 @@ const mutations = {
         if (info) {
             info.index = index || info.index;
             info.refresh = null;
+        } else if (index) { 
+         
+            const newCorpus: CorpusState = {
+                index, 
+                upload: null,
+                refresh: null
+            };
+
+            // have a valid payload, and corpus wasn't registered yet, add to store
+            state.corpora = Object.assign({}, state.corpora, {[id]: newCorpus});
         }
     }, 'reloadCorpusComplete'),
     
@@ -164,8 +174,8 @@ const cancelUploadDocumentsAction = b.dispatch((context, {id, reason = ''}: {id:
     }
 }, 'uploadDocumentsCancel');
 
-const deleteIndexAction = b.dispatch((context, {id}: {id: string}) => {
-    const request = Api.blacklab.deleteIndex(id);
+const deleteCorpusAction = b.dispatch((context, {id}: {id: string}) => {
+    const request = Api.blacklab.deleteCorpus(id);
     request.then(() => {
         // TODO writing the modified list of indices marks them as initialized
         // even if it wasn't initialized before.
@@ -178,14 +188,24 @@ const deleteIndexAction = b.dispatch((context, {id}: {id: string}) => {
         }
     }, swallowError);
     return request;
-}, 'deleteIndex');
+}, 'deleteCorpus');
+
+const createCorpusAction = b.dispatch((context, {id, displayName, formatId}: 
+    {id: string, displayName: string, formatId: string}) => {
+
+        const request = Api.blacklab.postCorpus(id, displayName, formatId);
+        request.then(() => actions.refresh({id}), swallowError);
+        return request;
+}, 'createCorpus');
 
 export const actions = {
+    init: () => {/**/}, // future use
     load: loadAction,
     refresh: refreshAction,
     uploadDocuments: uploadDocumentsAction,
     cancelUpload: cancelUploadDocumentsAction,
-    deleteCorpus: deleteIndexAction
+    deleteCorpus: deleteCorpusAction,
+    createCorpus: createCorpusAction,
 };
 
 export const get = {
@@ -194,4 +214,4 @@ export const get = {
     corpus: b.read(state => (id: string) => state.corpora[id], 'getCorpus'),
 };
 
-export default () => {/**/};
+// export default () => {/**/};

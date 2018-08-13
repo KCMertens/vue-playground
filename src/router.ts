@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import Router from 'vue-router';
-import Home from './views/Home.vue';
+
+import Home from '@/views/Home.vue';
 
 Vue.use(Router);
 
@@ -24,5 +25,10 @@ export default new Router({
             name: 'corpora',
             component: () => import('./views/Corpora.vue'),
         },
+        {
+            path: '/create-corpus',
+            name: 'New corpus',
+            component: () => import('./views/CreateCorpus.vue')
+        }
     ],
 });

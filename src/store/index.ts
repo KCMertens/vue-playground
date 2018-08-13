@@ -7,9 +7,10 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import {getStoreBuilder} from 'vuex-typex';
 
-import appModule, {AppState, actions as appActions} from '@/store/appstore';
-import corporaModule, {CorporaState} from '@/store/corporastore';
-import formatModule, {FormatState} from '@/store/formatstore';
+import {AppState, actions as appActions} from '@/store/appstore';
+import {CorporaState, actions as corporaActions} from '@/store/corporastore';
+import {FormatState, actions as formatActions} from '@/store/formatstore';
+import {UserState, actions as userActions } from '@/store/userstore';
 
 Vue.use(Vuex);
 
@@ -17,13 +18,18 @@ export type RootState = {
     app: AppState;
     corpora: CorporaState;
     formats: FormatState;
+    user: UserState;
 };
 
 const b = getStoreBuilder<RootState>();
 
+
 export const actions = {
     init: b.dispatch(() => {
         appActions.init();
+        corporaActions.init();
+        formatActions.init();
+        userActions.init();
     }, 'init'),
 };
 
@@ -33,9 +39,9 @@ export const actions = {
 // to ensure the store modules have registered with the StoreBuilder.
 // Simply importing the module doesn't work, since webpack detects its unused, and doesn't run the module.
 // Importing/using type exports also doesn't work, since those are removed by the typescript compiler before webpack.
-appModule();
-corporaModule();
-formatModule();
+// appModule();
+// corporaModule();
+// formatModule();
 
 // Initial state for modules already provided when the module was registered 
 // with this builder. So we would only have to supply our own initial state.

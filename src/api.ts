@@ -57,6 +57,10 @@ const paths = {
  * Blacklab api
  */
 export const blacklab = {
+    getUser: async () => (await blacklabEndpoint)
+        .get<BLTypes.BLServer>(paths.root())
+        .then(r => r.user),
+    
     getCorpora: async () => (await blacklabEndpoint)
         .get<BLTypes.BLServer>(paths.root())
         .then(r => Object.entries(r.indices))
@@ -70,6 +74,18 @@ export const blacklab = {
         .get<{'users[]': BLTypes.BLShareInfo}>(paths.shares(id))
         .then(r => r['users[]']),
 
+    getFormats: async () => (await blacklabEndpoint)
+        .get<BLTypes.BLFormats>(paths.formats())
+        .then(r => Object.entries(r.supportedInputFormats))
+        .then(r => r.map(([id, format]: [string, BLTypes.BLFormat]) => normalizeFormat(id, format))),
+
+    getFormatContent: async (id: string) => (await blacklabEndpoint)
+        .get<BLTypes.BLFormatContent>(paths.formats()),
+       
+    getFormatXslt: async (id: string) => (await blacklabEndpoint)
+        .get<string>(paths.formatXslt(id)),
+
+
     postShares: async (id: string, users: BLTypes.BLShareInfo) => (await blacklabEndpoint)
         .post<BLTypes.BLResponse>(paths.shares(id), 
             // Need to manually set content-type due to long-standing axios bug
@@ -78,8 +94,18 @@ export const blacklab = {
             {headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}}
         ),
 
-    deleteIndex: async (id: string) => (await blacklabEndpoint)
-        .delete<BLTypes.BLResponse>(paths.index(id)),
+    postFormat: async (name: string, contents: string) => {
+        const endpoint = await blacklabEndpoint;
+        const data = new FormData();
+        data.append('data', new File([contents], name, {type: 'text/plain'}), name);
+        return endpoint.post<BLTypes.BLResponse>(paths.formats(), data);
+    },
+
+    postCorpus: async (id: string, displayName: string, format: string) => (await blacklabEndpoint)
+        .post(paths.root(), 
+            qs.stringify({name: id, display: displayName, format}), 
+            {headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}}
+        ),
     
     postDocuments: async (
         indexId: string, 
@@ -113,22 +139,10 @@ export const blacklab = {
         };
     },
 
-    getFormats: async () => (await blacklabEndpoint)
-        .get<BLTypes.BLFormats>(paths.formats())
-        .then(r => Object.entries(r.supportedInputFormats))
-        .then(r => r.map(([id, format]: [string, BLTypes.BLFormat]) => normalizeFormat(id, format))),
+   
+    deleteCorpus: async (id: string) => (await blacklabEndpoint)
+        .delete<BLTypes.BLResponse>(paths.index(id)),
 
-    getFormatContent: async (id: string) => (await blacklabEndpoint)
-        .get<BLTypes.BLFormatContent>(paths.formats()),
-       
-    getFormatXslt: async (id: string) => (await blacklabEndpoint)
-        .get<string>(paths.formatXslt(id)),
 
-    createFormat: async (name: string, contents: string) => {
-        const endpoint = await blacklabEndpoint;
-        const data = new FormData();
-        data.append('data', new File([contents], name, {type: 'text/plain'}), name);
-        return endpoint.post<BLTypes.BLResponse>(paths.formats(), data);
-    },
 
 };

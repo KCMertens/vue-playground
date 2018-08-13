@@ -39,4 +39,4 @@ export const getters = {
     fatalError: b.read(state => state.fatalError, 'getFatalError'),
 };
 
-export default () => {/**/};
+// export default () => {/**/};
