@@ -1,7 +1,7 @@
 <template>
 <div v-if="user">
     
-    <h4>Create New Corpus</h4>
+    <h2>Create New Corpus</h2>
     <!-- TODO route back to previous view -->
     
     <div>

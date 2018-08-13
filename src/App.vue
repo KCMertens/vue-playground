@@ -1,17 +1,10 @@
 <template>
     <div id="app" v-if="config">
-        <Navbar :links="config.navbar.links"/>
-        <span>{{config.title}}</span>
+        <Navbar :title="config.title" :links="config.navbar.links"/>
         
         <div id="content">
             <router-view/>
         </div>
-        <!--
-        <div id="nav">
-            <router-link to="/">Home</router-link> |
-            <router-link to="/about">About</router-link>
-        </div>
-        -->
     </div>
     <div v-else-if="error">
         Oh no, some bad error happened!<br>
@@ -60,7 +53,7 @@ export default Vue.extend ({
     }
 }
 #content {
-    margin: 50px 25px 0px;
+    margin: 0px 25px;
 }
 
 

@@ -1,11 +1,7 @@
 {
-    "title": "Vue test",
+    "title": "Test",
     "navbar": {
         "links": [{
-            "href": "/",
-            "label": "Home",
-            "local": true
-        }, {
             "href": "/corpora",
             "label": "My Corpora",
             "local": true
