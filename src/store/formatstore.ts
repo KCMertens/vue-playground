@@ -1,14 +1,12 @@
 import { getStoreBuilder } from 'vuex-typex';
 
-import { RootState } from '@/store';
+import {RootState as SuperRootState} from '@/store';
 
 import * as api from '@/api';
 import {swallowError} from '@/utils/apiutils';
-
 import { NormalizedFormat } from '@/types/apptypes';
-import * as BLTypes from '@/types/blacklabtypes';
 
-export type FormatState = {
+export type RootState = {
     initialized: boolean;
     formats: {
         // Never actually undefined when key exists, but aids with type checking
@@ -16,13 +14,13 @@ export type FormatState = {
     };
 };
 
-const initialState: FormatState = {
+export const initialState: RootState = {
     initialized: false,
     formats: {},
 };
 
 // Same store builder instance as used by root store, so this module is implicitly registered
-const b = getStoreBuilder<RootState>().module('formats', initialState);
+const b = getStoreBuilder<SuperRootState>().module<RootState>('formats', initialState);
 
 const mutations = {
     setFormats: b.commit((state, payload: NormalizedFormat[]) => {
@@ -37,7 +35,6 @@ const mutations = {
 };
 
 export const actions = {
-    init: () => {/**/}, // future use
     load: b.dispatch((context, payload) => {
         const request = api.blacklab.getFormats();
         request.then(mutations.setFormats, swallowError);
@@ -50,4 +47,10 @@ export const get = {
     formats: b.read(state => state.formats, 'getFormats'),
 };
 
-// export default () => {/**/};
+export const init = (formats: NormalizedFormat[]) => {
+    if (get.initialized()) {
+        return;
+    }
+
+    mutations.setFormats(formats);
+};

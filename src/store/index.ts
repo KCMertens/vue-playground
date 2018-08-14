@@ -7,45 +7,80 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import {getStoreBuilder} from 'vuex-typex';
 
-import {AppState, actions as appActions} from '@/store/appstore';
-import {CorporaState, actions as corporaActions} from '@/store/corporastore';
-import {FormatState, actions as formatActions} from '@/store/formatstore';
-import {UserState, actions as userActions } from '@/store/userstore';
+import {normalizeIndices} from '@/utils/blacklabutils';
+
+import * as appStore from '@/store/appstore';
+import * as corporaStore from '@/store/corporastore';
+import * as formatStore from '@/store/formatstore';
+import * as userStore from '@/store/userstore';
+
+import * as api from '@/api';
+import { BLUser } from '@/types/blacklabtypes';
+import { AppConfig, NormalizedFormat, NormalizedIndex, ApiError } from '@/types/apptypes';
+import { swallowError } from '@/utils/apiutils';
 
 Vue.use(Vuex);
 
-export type RootState = {
-    app: AppState;
-    corpora: CorporaState;
-    formats: FormatState;
-    user: UserState;
+type ModuleRootState = {
+    app: appStore.RootState;
+    corpora: corporaStore.RootState;
+    formats: formatStore.RootState;
+    user: userStore.RootState;
+};
+
+type OwnRootState = {
+    initialized: boolean;
+};
+
+export type RootState = ModuleRootState&OwnRootState;
+
+const initialState: RootState = {
+    app: appStore.initialState,
+    corpora: corporaStore.initialState,
+    formats: formatStore.initialState,
+    user: userStore.initialState,
+
+    initialized: false,
 };
 
 const b = getStoreBuilder<RootState>();
 
+const mutations = {
+    initialize: b.commit(
+        (state, {config, user, corpora, formats}: 
+        {config: AppConfig, user: BLUser, corpora: NormalizedIndex[], formats: NormalizedFormat[]}
+    ) => {
+        state.initialized = true;
+        appStore.init(config);
+        corporaStore.init(corpora);
+        formatStore.init(formats);
+        userStore.init(user);
+    }, 'initialize'),
+};
 
 export const actions = {
     init: b.dispatch(() => {
-        appActions.init();
-        corporaActions.init();
-        formatActions.init();
-        userActions.init();
+        const requests = Promise.all([
+            api.app.getConfig(),
+            api.blacklab.getServerInfo(),
+            api.blacklab.getFormats()
+        ]);
+        requests.then(([config, serverInfo, formats]) => {
+            mutations.initialize({
+                config, 
+                user: serverInfo.user,
+                corpora: normalizeIndices(serverInfo),
+                formats
+            });
+        }, swallowError);
+        return requests;
     }, 'init'),
 };
 
-// -----------------------------
+export const get = {
+    initialized: b.read((state) => state.initialized, 'isInitialized'),
+};
 
-// JS Modules are only ran on first use, so ensure the modules are ran before we call .vuexStore
-// to ensure the store modules have registered with the StoreBuilder.
-// Simply importing the module doesn't work, since webpack detects its unused, and doesn't run the module.
-// Importing/using type exports also doesn't work, since those are removed by the typescript compiler before webpack.
-// appModule();
-// corporaModule();
-// formatModule();
-
-// Initial state for modules already provided when the module was registered 
-// with this builder. So we would only have to supply our own initial state.
-// But we have no state, so we don't need to provide anything here.
-const store = b.vuexStore();
-actions.init();
+const store = b.vuexStore({state: initialState});
+// actions.init();
 export default store;

@@ -1,12 +1,14 @@
 <template>
     <div class="corpora">
       
-        <div v-if="user" style="text-align: right;">logged in as: {{user.id}}</div>
+        <div v-if="user" style="text-align: right;">{{user.loggedIn ? `Logged in as: ${user.id}` : `Not logged in`}}</div>
+        <!-- TODO spinner while loading user? -->
+        
         <div v-if="!corporaInitialized && !corporaError">
             Loading corpora...
         </div>
          
-         <MessageBox v-if="corporaError"
+        <MessageBox v-if="corporaError"
             class="error" 
             title="Could not load corpora" 
             :message="corporaError.message" 
@@ -16,11 +18,6 @@
             :corpus="corpus" 
             :key="id"/>
 
-        <!-- format display? 
-        <NewCorpus :formats="formatList" :existingCorpora="existingCorpora"/>
-        --> 
-        <!-- todo check max amount of allowed corpora etc -->
-      
         <template v-if="user && user.loggedIn">
             <div v-if="!user.canCreateIndex">You cannot create any more corpora</div>
             <button v-else type="button"  @click="$router.push('/create-corpus')">Create new corpus</button>
@@ -46,7 +43,6 @@ export default Vue.extend({
     name: 'Corpora',
     data: () => ({
         corporaError: null as ApiError|null,
-        formatError: null as ApiError|null,
     }),
     components: {
         MessageBox,
@@ -60,10 +56,7 @@ export default Vue.extend({
     },
     methods: {
         reloadCorpora(): void {
-            this.corporaError = null;
-            corporaStore.actions.load()
-            .catch(e => this.corporaError = e);
-            userStore.actions.loadUser();
+            corporaStore.actions.load();
         },
     },
     watch: {

@@ -20,6 +20,11 @@ export function normalizeIndex(id: string, index: BLTypes.BLIndex): NormalizedIn
     };
 }
 
+export function normalizeIndices(info: BLTypes.BLServer): NormalizedIndex[] {
+    return Object.entries(info.indices)
+    .map(([key, value]) => normalizeIndex(key, value));
+}
+
 export function normalizeFormat(id: string, format: BLTypes.BLFormat): NormalizedFormat {
     return {
         ...format, 
@@ -32,4 +37,9 @@ export function normalizeFormat(id: string, format: BLTypes.BLFormat): Normalize
         helpUrl: format.helpUrl || null,
         description: format.description || null,
     };
+}
+
+export function normalizeFormats(formats: {[key: string]: BLTypes.BLFormats}): NormalizedFormat[] {
+    return Object.entries(formats.supportedInputFormats)
+    .map(([key, value]) => normalizeFormat(key, value));
 }

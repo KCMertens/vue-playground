@@ -1,9 +1,9 @@
 import axios from 'axios';
 import * as qs from 'qs';
 
-import {createEndpoint} from '@/utils/apiutils';
+import {createEndpoint, swallowError} from '@/utils/apiutils';
 
-import { AppConfig } from '@/types/apptypes';
+import { AppConfig, ApiError } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 
 import { normalizeIndex, normalizeFormat } from '@/utils/blacklabutils';
@@ -13,25 +13,26 @@ const appEndpoint = createEndpoint({
     url: '/',
 });
 
-
-// We're going to need this often, so just cache it.
-const appConfig = appEndpoint.get<AppConfig>('/config/appConfig.json');
-
-const blacklabEndpoint = appConfig.then(config => createEndpoint({
-    baseURL: config.blacklabServer,
-    params: {
-        outputformat: 'json',
-    },
-}));
-
-
 /**
  * App api
  */
 export const app = {
-    get config() { return appConfig; }
+    getConfig: () => appEndpoint.get<AppConfig>('/config/appConfig.json'),
 };
 
+// If this fails, user will have to reload the page unfortunately
+// We can't easily retry in case of a failed initial setup.
+const blacklabEndpoint = app.getConfig().then(config => createEndpoint({
+    baseURL: config.blacklabServer,
+    params: {
+        outputformat: 'json',
+    },
+}))
+.catch(() => new Promise<never>((resolve, reject) => reject(new ApiError(
+`Please reload the page.`, 
+`Failed to start up because /config/appConfig.json is missing on the server.
+Please correct this and reload the page to try again.`, '')
+)));
 
 // Some blacklab-server request creators
 const paths = {
@@ -57,6 +58,9 @@ const paths = {
  * Blacklab api
  */
 export const blacklab = {
+    getServerInfo: async () => (await blacklabEndpoint)
+        .get<BLTypes.BLServer>(paths.root()),
+  
     getUser: async () => (await blacklabEndpoint)
         .get<BLTypes.BLServer>(paths.root())
         .then(r => r.user),
@@ -142,7 +146,4 @@ export const blacklab = {
    
     deleteCorpus: async (id: string) => (await blacklabEndpoint)
         .delete<BLTypes.BLResponse>(paths.index(id)),
-
-
-
 };

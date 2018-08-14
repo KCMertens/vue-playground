@@ -43,6 +43,7 @@ export default Vue.extend({
             a {
                 color: hsl(200, 100%, 40%);
                 border-color: hsl(200, 100%, 25%);
+                border-left-width: 5px;
                 &:hover,
                 &:focus,
                 &.router-link-exact-active {

@@ -1,42 +1,48 @@
 import { getStoreBuilder } from 'vuex-typex';
 
-import { app as AppAPI} from '@/api';
-import { RootState } from '@/store';
+import * as api from '@/api';
+import {swallowError} from '@/utils/apiutils';
+import { RootState as SuperRootState } from '@/store';
 
-import { ApiError, AppConfig } from '@/types/apptypes';
+import { AppConfig } from '@/types/apptypes';
 
-export type AppState = {
+export type RootState = {
     appConfig: AppConfig|null;
-    fatalError: ApiError|null;
+    initialized: boolean;
 };
 
-const initialState: AppState = {
+export const initialState: RootState = {
     appConfig: null,
-    fatalError: null,
+    initialized: false,
 };
 
 // Same store builder instance as used by root store, so this module is implicitly registered
-const b = getStoreBuilder<RootState>().module('app', initialState);
+const b = getStoreBuilder<SuperRootState>().module<RootState>('app', initialState);
 
-/**
- * We don't export these on purpose
- * We use mutations/commits because directly writing to store.state
- * from actions won't log events, breaking rewind/replay and hiding the mutations from the devtools.
- */
 const mutations = {
-    setConfig: b.commit((state, payload: AppConfig) => state.appConfig = payload, 'setConfig'),
-    setFatalError: b.commit((state, payload: ApiError) => state.fatalError = payload, 'setFatalError'),
+    config: b.commit((state, payload: AppConfig) => {
+        state.appConfig = payload;
+        state.initialized = true;
+    }, 'setConfig'),
 };
 
 export const actions = {
-    init: b.dispatch(() => {
-        AppAPI.config.then(mutations.setConfig, mutations.setFatalError);
+    load: b.dispatch((state) => {
+        const request = api.app.getConfig();
+        request.then(mutations.config, swallowError);
+        return request;
     }, 'init'),
 };
 
-export const getters = {
+export const get = {
     config: b.read(state => state.appConfig, 'getConfig'),
-    fatalError: b.read(state => state.fatalError, 'getFatalError'),
+    initialized: b.read(state => state.initialized, 'isInitialized'),
 };
 
-// export default () => {/**/};
+export const init = (config: AppConfig) => {
+    if (get.initialized()) {
+        return;
+    }
+
+    mutations.config(config);
+};

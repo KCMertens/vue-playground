@@ -3,7 +3,7 @@ import { Canceler } from 'axios';
 
 import * as Api from '@/api';
 import {swallowError} from '@/utils/apiutils';
-import {RootState} from '@/store';
+import {RootState as SuperRootState} from '@/store';
 
 import { NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
@@ -23,7 +23,7 @@ export type CorpusState = {
     // structure: BlTypes.IndexStructure; TODO
 };
 
-export type CorporaState = {
+export type RootState = {
     /** Have we attempted to load the initial corpora at least once */
     initialized: boolean;
     /** All known corpora. Empty when uninitialized. May be stale when last request failed. */
@@ -33,7 +33,7 @@ export type CorporaState = {
     };
 };
 
-const initialState: CorporaState = {
+export const initialState: RootState = {
     initialized: false,
     corpora: {},
 };
@@ -46,7 +46,7 @@ const initialCorpusState = {
 
 // Same store builder instance as used by root store, so no 
 // need to explicitly register the module. anywhere
-const b = getStoreBuilder<RootState>().module('corpora', initialState);
+const b = getStoreBuilder<SuperRootState>().module<RootState>('corpora', initialState);
 
 const mutations = {
     corpora: b.commit((state, payload: NormalizedIndex[]) => {
@@ -212,6 +212,14 @@ export const get = {
     initialized: b.read(state => state.initialized, 'getInitialized'),
     corpora: b.read(state => state.corpora, 'getCorpora'),
     corpus: b.read(state => (id: string) => state.corpora[id], 'getCorpus'),
+};
+
+
+export const init = (corpora: NormalizedIndex[]) => {
+    if (get.initialized()) {
+        return;
+    }
+    mutations.corpora(corpora);
 };
 
 // export default () => {/**/};

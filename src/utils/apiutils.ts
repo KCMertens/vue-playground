@@ -65,22 +65,22 @@ export async function handleError<T>(error: AxiosError): Promise<never> {
                 ));
             } else {
                 return Promise.reject(new ApiError(
-                    'Unknown error',
-                    'Server returned an unknown error at: ' + response.config.url,
+                    response.statusText,
+                    `Server returned ${response.statusText} at: ${response.config.url}`,
                     response.statusText
                 ));
             }
         } catch (e) {
             return Promise.reject(new ApiError(
-                'Unknown error.', 
-                'Server returned an unknown error at: ' + response.config.url, 
+                response.statusText,
+                `Server returned ${response.statusText} at: ${response.config.url}`,
                 response.statusText
             ));
         }       
     } else {
         return Promise.reject(new ApiError(
-            'Unknown error.', 
-            'Server returned an unknown error at: ' + response.config.url, 
+            response.statusText,
+            `Server returned ${response.statusText} at: ${response.config.url}`,
             response.statusText
         ));
     }
