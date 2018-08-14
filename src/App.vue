@@ -2,8 +2,7 @@
     <div id="app">
        
         <template v-if="initialized">
-            <Navbar :title="appConfig.title" :links="appConfig.navbar.links"/>
-            
+            <Navbar/>
             <div id="content">
                 <router-view/>
             </div>
@@ -44,13 +43,7 @@ export default Vue.extend ({
         error: null as ApiError|null,
     }),
     computed: {
-        appConfig: appStore.get.config,
         initialized: store.get.initialized,
-
-        // TODO, based on user and stuff
-        internalLinks(): string[] {
-            return [];
-        },
     },
     methods: {
         setError(e: ApiError) { this.error = e; },

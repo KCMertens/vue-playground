@@ -1,5 +1,7 @@
 import { getStoreBuilder } from 'vuex-typex';
 
+import Vue from 'vue';
+
 import {RootState as SuperRootState} from '@/store';
 
 import * as api from '@/api';
@@ -32,19 +34,37 @@ const mutations = {
         state.formats = newFormats;
         state.initialized = true;
     }, 'setFormats'),
+    removeFormat: b.commit((state, {id}: {id: string}) => {
+        if (!state.initialized) {
+            return;
+        }
+        Vue.delete(state.formats, id);
+    }, 'removeFormat'),
+    addFormat: b.commit((state, payload: NormalizedFormat) => {
+        if (!state.initialized) {
+            return;
+        }
+        Vue.set(state.formats, payload.id, payload);
+    }, 'addFormat'),
 };
 
 export const actions = {
-    load: b.dispatch((context, payload) => {
+    load: b.dispatch(() => {
         const request = api.blacklab.getFormats();
         request.then(mutations.setFormats, swallowError);
         return request;
     }, 'loadFormats'),
+    delete: b.dispatch((context, {id}: {id: string}) => {
+        const request = api.blacklab.deleteFormat(id);
+        request.then(() => mutations.removeFormat({id}), swallowError);
+        return request;
+    }, 'deleteFormat'),
 };
 
 export const get = {
     initialized: b.read(state => state.initialized, 'getInitialized'),
     formats: b.read(state => state.formats, 'getFormats'),
+    format: b.read(state => (id: string) => state.formats[id], 'getFormat'),
 };
 
 export const init = (formats: NormalizedFormat[]) => {

@@ -1,9 +1,5 @@
 <template>
     <div class="corpora">
-      
-        <div v-if="user" style="text-align: right;">{{user.loggedIn ? `Logged in as: ${user.id}` : `Not logged in`}}</div>
-        <!-- TODO spinner while loading user? -->
-        
         <div v-if="!corporaInitialized && !corporaError">
             Loading corpora...
         </div>

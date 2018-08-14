@@ -143,7 +143,9 @@ export const blacklab = {
         };
     },
 
-   
+    deleteFormat: async (id: string) => (await blacklabEndpoint)
+        .delete<BLTypes.BLResponse>(paths.formatContent(id)),
+
     deleteCorpus: async (id: string) => (await blacklabEndpoint)
         .delete<BLTypes.BLResponse>(paths.index(id)),
 };

@@ -2,10 +2,6 @@
     "title": "Test",
     "navbar": {
         "links": [{
-            "href": "/corpora",
-            "label": "My Corpora",
-            "local": true
-        }, {
             "href":"http://ivdnt.org/",
             "label": "INT"
         }]
