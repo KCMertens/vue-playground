@@ -4,24 +4,22 @@
         <h2>New document format</h2>
         <div>
             <label for="open_format_file">Open a file from your computer</label>
-            <FileInput :disabled="readingFile" type="text" label="Open a file from your computer" @change="onFileChanged" ref="file"/>
+            <FileInput :disabled="busy" type="text" label="Open a file from your computer" @change="onFileChanged" ref="file"/>
         </div>
 
         <div>
-            <label for="format_select">Open an existing format</label>
-
             <form @submit.prevent="downloadFormat">
                 <combo-box filter v-model="formatToDownload"
-                    :options="formatList.filter(f => f.configurationBased).map(f => ({label: f.displayName, value: f.id}))"
+                    :options="formatList"
                     placeholder="Choose a format"
+                    wrap
                 />
-                <button type="submit" :disabled="!formatToDownload && !downloadingFormat">download</button>
+                <button type="submit" :disabled="!formatToDownload || busy">download</button>
             </form>
         </div>
 
         <div>
             <h3>Edit area</h3>
-                <!-- name, type -->
             <label for="format_name">Format name</label><input type="text" id="format_name"/>
             <select id="format_type" class="selectpicker" data-width="auto" data-style="btn-primary">
                 <option label="YAML" value="yaml" selected>YAML</option>
@@ -32,8 +30,7 @@
 
 
         <div>
-            <button type="button">OK</button>
-            <button type="button" >Cancel</button>
+            <button type="button" :disabled="busy">Save</button>
         </div>
         <h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="http://inl.github.io/BlackLab/how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
 
@@ -51,7 +48,6 @@
 
     </div>
 
-
 </template>
 
 <script lang="ts">
@@ -60,7 +56,7 @@ import Vue from 'vue';
 import * as formatStore from '@/store/formatstore';
 import * as api from '@/api';
 
-import ComboBox from '@/components/basic/ComboBox.vue';
+import ComboBox, {OptionGroupList} from '@/components/basic/ComboBox.vue';
 import MessageBox from '@/components/basic/MessageBox.vue';
 import FileInput from '@/components/basic/FileInput.vue';
 
@@ -81,12 +77,32 @@ export default Vue.extend({
         formatContent: '',
         downloadingFormat: false,
         readingFile: false,
+        saving: false
     }),
     computed: {
         formats: formatStore.get.formats,
-        formatList(): NormalizedFormat[] {
-            return (Object.values(this.formats) as NormalizedFormat[])
-            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        formatList(): OptionGroupList {
+
+            const groups: {[key: string]: NormalizedFormat[]} = {};
+
+            (Object.values(this.formats) as NormalizedFormat[])
+            .filter(f => f.configurationBased)
+            .sort((a, b) => a.displayName.localeCompare(b.displayName))
+            .forEach(f => {
+                const g = groups[f.owner || 'Blacklab'] = groups[f.owner || 'Blacklab'] || [];
+                g.push(f);
+            });
+
+            return Object.entries(groups).map(([key, value]) => ({
+                label: key,
+                options: value.map(v => ({
+                    label: v.displayName,
+                    value: v.id
+                })),
+            }));
+        },
+        busy() {
+            return !this.downloadFormat && !this.readingFile && !this.saving;
         }
     },
     methods: {
@@ -95,7 +111,7 @@ export default Vue.extend({
         clearStatus() { this.errorMsg = this.successMsg = null; },
 
         downloadFormat() {
-            if (!this.formatToDownload) {
+            if (!this.formatToDownload || this.busy) {
                 return;
             }
 
@@ -127,6 +143,7 @@ export default Vue.extend({
             reader.onerror = () => this.readingFile = false;
             reader.onabort = () => this.readingFile = false;
 
+            // @ts-ignore
             this.$refs.file.clear();
         }
     }
