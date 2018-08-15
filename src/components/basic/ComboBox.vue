@@ -268,9 +268,7 @@ export default Vue.extend({
         background: white;
         box-shadow: 0px 2px 5px -2px black, 0px 4px 9px -4px rgba(0,0,0,0.5);
         border: 1px solid rgba(0,0,0,0.1);
-        //border-radius: 4px;
         margin-top: 3px;
-        padding: 6px 4px;
         position: absolute;
         top: auto;
         width: auto;
@@ -280,12 +278,9 @@ export default Vue.extend({
         overflow-y: auto;
         z-index: 1000;
 
-        &:empty {
-            display: none;
-        }
-
         >.option {
-            padding: 4px 4px 4px 12px;
+            padding: 4px 0px 4px 22px;
+            color: #4a4a4a;
             cursor: pointer;
             &:hover,
             &:focus,
@@ -295,9 +290,13 @@ export default Vue.extend({
             }
         }
         >.optiongroup {
-            padding: 4px 12px 4px 6px;
-            font-weight: bold;
-            color: #292929;
+            padding: 8px 0px 4px 12px;
+            // background: #f8f8f8;
+            color: #777;
+            font-size: 14px;
+
+            margin-bottom: 4px;
+            border-bottom: 1px solid #ccc;
         }
 
         &:not(.wrap) {
