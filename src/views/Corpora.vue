@@ -32,7 +32,7 @@ import * as userStore from '@/store/userstore';
 import * as corporaStore from '@/store/corporastore';
 
 import RouterLink from 'vue-router';
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 import Corpus from '@/components/corpus/Corpus.vue';
 
 export default Vue.extend({

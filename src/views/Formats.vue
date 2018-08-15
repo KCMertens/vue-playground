@@ -37,7 +37,7 @@ import * as userStore from '@/store/userstore';
 import * as formatStore from '@/store/formatstore';
 
 import RouterLink from 'vue-router';
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 import Format from '@/components/format/Format.vue';
 
 export default Vue.extend({

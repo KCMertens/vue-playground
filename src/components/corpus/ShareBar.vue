@@ -44,7 +44,7 @@ import Vue from 'vue';
 import * as api from '@/api';
 import {ApiError} from '@/types/apptypes';
 
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 
 export default Vue.extend({
     name: 'ShareBar',

@@ -40,7 +40,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 
 import {NormalizedFormat, ApiError} from '@/types/apptypes';
 // import * as api from '@/api';

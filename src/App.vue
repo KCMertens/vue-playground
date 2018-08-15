@@ -31,7 +31,7 @@ import * as userStore from '@/store/userstore';
 
 import {ApiError} from '@/types/apptypes';
 
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 
 export default Vue.extend ({
     name: 'App',

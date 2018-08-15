@@ -100,7 +100,8 @@ export default Vue.extend({
         padding-right: 5px;
     }
     >.name {
-        width: 0;
+        width: 75px;
+        min-width: 75px;
         flex-grow: 5;
         padding-right: 5px;
     }

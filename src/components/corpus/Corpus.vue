@@ -88,7 +88,7 @@ import {formatNumber} from '@/utils/utils';
 import * as api from '@/api';
 import * as corporaStore from '@/store/corporastore';
 
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 import UploadBar from '@/components/corpus/UploadBar.vue';
 import ShareBar from '@/components/corpus/ShareBar.vue';
 import DeleteBar from '@/components/corpus/DeleteBar.vue';

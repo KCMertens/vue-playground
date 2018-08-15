@@ -34,6 +34,11 @@ export default new Router({
             path: '/create-corpus',
             name: 'New corpus',
             component: () => import('./views/CreateCorpus.vue')
+        },
+        {
+            path: '/create-format',
+            name: 'New format',
+            component: () => import ('./views/CreateFormat.vue')
         }
     ],
 });

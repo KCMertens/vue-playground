@@ -28,7 +28,7 @@ import Vue from 'vue';
 import {ApiError} from '@/types/apptypes';
 import * as corporaStore from '@/store/corporastore';
 
-import MessageBox from '@/components/MessageBox.vue';
+import MessageBox from '@/components/basic/MessageBox.vue';
 
 export default Vue.extend({
     name: 'DeleteBar',

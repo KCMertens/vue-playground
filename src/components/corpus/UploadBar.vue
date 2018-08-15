@@ -38,7 +38,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import FileInput from '@/components/FileInput.vue';
+import FileInput from '@/components/basic/FileInput.vue';
 
 import * as corporaStore from '@/store/corporastore';
 import * as BLTypes from '@/types/blacklabtypes';
