@@ -1,14 +1,14 @@
 <template >
     <!-- use show so the file inputs preserve their state -->
     <div class="uploadbar" v-show="open || isUploading || isIndexing">
-        <template v-show="open && canUpload"> 
+        <template v-show="open && canUpload">
             <div style="overflow: hidden">
                 <button type="button" class="fa fa-caret-up" title="close" style="float: right" @click="close"/>
                 <div style="text-align:center;">upload config panel</div>
             </div>
 
-            <file-input ref="docs"/>
-            <file-input ref="meta"/>
+            <file-input ref="docs" label="Select documents" multiple/>
+            <file-input ref="meta" label="Select metadata" multiple/>
 
             <button @click="upload">upload</button>
             <button @click="clearFiles">clear files</button>
@@ -27,9 +27,9 @@
 
         <template v-if="isIndexing">
             <div style="text-align:center;">index progress panel</div>
-            {{indexProgress.filesProcessed}} files, 
-            {{indexProgress.docsDone}} docs and 
-            {{indexProgress.tokensProcess}} tokens indexed so far...    
+            {{indexProgress.filesProcessed}} files,
+            {{indexProgress.docsDone}} docs and
+            {{indexProgress.tokensProcess}} tokens indexed so far...
         </template>
     </div>
 
@@ -72,7 +72,7 @@ export default Vue.extend({
             if (!this.canUpload) {
                 return;
             }
-            
+
             const docs = this.$refs.docs as any;
             const meta = this.$refs.meta as any;
             const df = docs.getFiles();
@@ -82,16 +82,16 @@ export default Vue.extend({
                 this.verificationMessage = 'Please select a file.';
                 return;
             }
-            
+
             this.verificationMessage = null;
             this.$emit('start');
             corporaStore.actions.uploadDocuments({
-                id: this.id, 
-                docs: df, 
+                id: this.id,
+                docs: df,
                 meta: mf
             })
             .then(
-                r => this.$emit('success', r), 
+                r => this.$emit('success', r),
                 e => this.$emit('error', e)
             )
             .finally(() => this.$emit('end'));
@@ -101,7 +101,7 @@ export default Vue.extend({
                 return;
             }
             corporaStore.actions.cancelUpload({
-                id: this.id, 
+                id: this.id,
                 reason: 'User cancelled upload'
             });
         }

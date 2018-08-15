@@ -4,7 +4,6 @@
         <input type="text"
             ref="input"
 
-            :placeholder="placeholder"
             v-model="currentValue"
 
             @focus="open"
@@ -13,6 +12,9 @@
             @keydown.prevent.up="focusUp"
             @keydown.prevent.esc="close"
             @keydown.tab="close"
+
+            v-bind="$attrs"
+            v-on="getInputListeners"
         />
 
         <ul v-show="isOpen" ref="ul">
@@ -43,9 +45,9 @@ import Vue from 'vue';
 
 export default Vue.extend({
     name: 'ComboBox',
+    inheritAttrs: false,
     props: {
         options: Array as () => Array<{value: string, label?: string}>,
-        placeholder: String as () => string,
         filter: Boolean,
         value: String as () => string,
     },
@@ -55,6 +57,14 @@ export default Vue.extend({
         currentValue: '' // synced with actual input
     }),
     computed: {
+        getInputListeners(): any {
+            const listeners = Object.assign({}, this.$listeners);
+            // Don't attach @input listener set by v-model from inside our parent component
+            // We attach our own v-model listener to the input already
+            delete listeners.input;
+            return listeners;
+        },
+
         filterableOptions(): Array<{value: string, label: string, lowerValue: string, lowerLabel: string}> {
             return this.options.map(o => ({
                 value: o.value,
@@ -130,7 +140,9 @@ export default Vue.extend({
         value: {
             immediate: true,
             handler(newVal) {
-                this.currentValue = newVal;
+                if (newVal !== this.currentValue) {
+                    this.currentValue = newVal;
+                }
             }
         },
         currentValue(newValue) {
@@ -153,15 +165,16 @@ export default Vue.extend({
 
     >input {
         z-index: 1000;
+        position: relative;
     }
 
     >ul {
         background: white;
         box-shadow: 0px 2px 5px -2px black, 0px 4px 9px -4px rgba(0,0,0,0.5);
         border: 1px solid rgba(0,0,0,0.1);
-        border-radius: 4px;
+        //border-radius: 4px;
         margin-top: 4px;
-        padding: 10px 4px;
+        padding: 6px 4px;
         position: absolute;
         top: auto;
         width: auto;

@@ -4,23 +4,19 @@
         <h2>New document format</h2>
         <div>
             <label for="open_format_file">Open a file from your computer</label>
-            <input type="file" id="open_format_file" title="Open a file from your computer"/>
+            <FileInput :disabled="readingFile" type="text" label="Open a file from your computer" @change="onFileChanged" ref="file"/>
         </div>
 
         <div>
             <label for="format_select">Open an existing format</label>
 
             <form @submit.prevent="downloadFormat">
-                <combo-box
-                    :options="formatList.map(f => ({label: f.displayName, value: f.id}))"
-                    filter
+                <combo-box filter v-model="formatToDownload"
+                    :options="formatList.filter(f => f.configurationBased).map(f => ({label: f.displayName, value: f.id}))"
                     placeholder="Choose a format"
-                    v-model="formatToDownload"
-                    @keypress.enter="downloadFormat"
                 />
                 <button type="submit" :disabled="!formatToDownload && !downloadingFormat">download</button>
             </form>
-            <div>TODO needs combobox feature</div>
         </div>
 
         <div>
@@ -66,6 +62,7 @@ import * as api from '@/api';
 
 import ComboBox from '@/components/basic/ComboBox.vue';
 import MessageBox from '@/components/basic/MessageBox.vue';
+import FileInput from '@/components/basic/FileInput.vue';
 
 import {NormalizedFormat, ApiError} from '@/types/apptypes';
 import {BLResponse} from '@/types/blacklabtypes';
@@ -74,14 +71,16 @@ export default Vue.extend({
     name: 'CreateFormat',
     components: {
         ComboBox,
-        MessageBox
+        MessageBox,
+        FileInput
     },
     data: () => ({
         errorMsg: null as ApiError|null,
         successMsg: null as BLResponse|null,
         formatToDownload: '',
         formatContent: '',
-        downloadingFormat: false
+        downloadingFormat: false,
+        readingFile: false,
     }),
     computed: {
         formats: formatStore.get.formats,
@@ -111,6 +110,24 @@ export default Vue.extend({
 
         setFormatContent(content: string) {
             this.formatContent = content;
+        },
+
+        onFileChanged(files: FileList, numFiles: number) {
+            if (numFiles !== 1 || this.readingFile) {
+                return;
+            }
+            this.readingFile = true;
+            const file = files.item(0)!;
+            const reader = new FileReader();
+            reader.readAsText(file);
+            reader.onload = () => {
+                this.formatContent = reader.result;
+                this.readingFile = false;
+            };
+            reader.onerror = () => this.readingFile = false;
+            reader.onabort = () => this.readingFile = false;
+
+            this.$refs.file.clear();
         }
     }
 });
