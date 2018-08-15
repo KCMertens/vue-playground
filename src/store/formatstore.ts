@@ -27,7 +27,7 @@ const b = getStoreBuilder<SuperRootState>().module<RootState>('formats', initial
 const mutations = {
     setFormats: b.commit((state, payload: NormalizedFormat[]) => {
         const newFormats = {} as typeof state.formats;
-        
+
         payload.forEach(format => {
             newFormats[format.id] = format;
         });

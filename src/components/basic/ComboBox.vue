@@ -1,22 +1,24 @@
 <template>
     <!-- TODO classes to allow styling overrides -->
     <div class="dropdown">
-        <input type="text" v-model="uservalue" :placeholder="placeholder" 
+        <input type="text"
             ref="input"
-            
+
+            :placeholder="placeholder"
+            v-model="currentValue"
+
             @focus="open"
+            @click="open"
             @keydown.prevent.down="focusDown"
             @keydown.prevent.up="focusUp"
             @keydown.prevent.esc="close"
             @keydown.tab="close"
-            @keydown.shift.tab="close"
         />
-    
-        <ul v-if="isOpen">
-            <li v-for="option in filteredOptions" 
+
+        <ul v-show="isOpen" ref="ul">
+            <li v-for="option in filteredOptions"
                 tabindex="-1"
 
-                ref="li"
                 :key="option.value"
                 :title="option.value"
                 @click="select(option.value)"
@@ -33,29 +35,24 @@
 
         <div v-if="isOpen && filteredOptions.length" class="backdrop" @click="close"/>
     </div>
-    
+
 </template>
 
 <script lang="ts">
-
-/*
-    press down to enter the autocomplete list
-    then tabbing will keep you in there
-    pressing tab to go to the next input should work as normal though
-*/
-
 import Vue from 'vue';
+
 export default Vue.extend({
     name: 'ComboBox',
     props: {
         options: Array as () => Array<{value: string, label?: string}>,
         placeholder: String as () => string,
         filter: Boolean,
+        value: String as () => string,
     },
-    data: () => ({
+    data: () =>  ({
         isOpen: false,
-        uservalue: null as string|null,
         focusIndex: null as number|null,
+        currentValue: '' // synced with actual input
     }),
     computed: {
         filterableOptions(): Array<{value: string, label: string, lowerValue: string, lowerLabel: string}> {
@@ -67,20 +64,17 @@ export default Vue.extend({
             }));
         },
         filterableValue(): string|null {
-            return this.uservalue ? this.uservalue.toLowerCase() : null;
+            return this.currentValue ? this.currentValue.toLowerCase() : null;
         },
-        
+
         filteredOptions(): any[] {
-            if (!this.filter) {
-                return this.options;
-            }
-            
-            const v = this.filterableValue;
             const opts: any[] = this.filterableOptions; // bleh
+            const v = this.filterableValue;
+            if (!this.filter || !v) {
+                return opts;
+            }
 
-            return v ? opts.filter(o => o.lowerValue.indexOf(v) >= 0 || o.lowerLabel.indexOf(v) >= 0) : opts;
-
-            // return this.filterableOptions.filter(f => f.lowerValue.indexOf(this.uservalue))
+            return opts.filter(o => o.lowerValue.indexOf(v) >= 0 || o.lowerLabel.indexOf(v) >= 0);
         }
     },
     methods: {
@@ -93,7 +87,6 @@ export default Vue.extend({
             this.focusIndex = null;
         },
         focusDown() {
-            // debugger;
             const numOptions = this.filteredOptions.length;
             if (numOptions === 0) {
                 return;
@@ -103,36 +96,50 @@ export default Vue.extend({
             if (!this.isOpen) {
                 this.open();
                 Vue.nextTick(() => {
-                    (this.$refs.li as HTMLElement[])[focusIndex].focus();
+                    ((this.$refs.ul as HTMLElement).children[focusIndex] as HTMLElement).focus();
+                // (this.$refs.li as HTMLElement[])[focusIndex].focus();
                 });
             } else {
-                (this.$refs.li as HTMLElement[])[focusIndex].focus();
+                ((this.$refs.ul as HTMLElement).children[focusIndex] as HTMLElement).focus();
             }
         },
         focusUp() {
-            // debugger;
             const numOptions = this.filteredOptions.length;
             if (numOptions === 0) {
                 return;
             }
-            const focusIndex = this.focusIndex = this.focusIndex === null ? 
-                numOptions - 1 : 
+            const focusIndex = this.focusIndex = this.focusIndex === null ?
+                numOptions - 1 :
                 (this.focusIndex + numOptions - 1) % numOptions;
 
             if (!this.isOpen) {
                 this.open();
                 Vue.nextTick(() => {
-                    (this.$refs.li as HTMLElement[])[focusIndex].focus();
+                    ((this.$refs.ul as HTMLElement).children[focusIndex] as HTMLElement).focus();
                 });
             } else {
-                (this.$refs.li as HTMLElement[])[focusIndex].focus();
+                ((this.$refs.ul as HTMLElement).children[focusIndex] as HTMLElement).focus();
             }
         },
         select(val: string) {
-            this.uservalue = val;
-            this.close();
+            this.currentValue = val;
+            Vue.nextTick(this.close);
         }
     },
+    watch: {
+        value: {
+            immediate: true,
+            handler(newVal) {
+                this.currentValue = newVal;
+            }
+        },
+        currentValue(newValue) {
+            if (this.value !== newValue) {
+                this.$emit('input', newValue);
+                this.open();
+            }
+        }
+    }
 });
 
 </script>
@@ -142,6 +149,7 @@ export default Vue.extend({
 .dropdown {
 
     position: relative;
+    display: inline-block;
 
     >input {
         z-index: 1000;
@@ -153,7 +161,7 @@ export default Vue.extend({
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 4px;
         margin-top: 4px;
-        padding: 10px 4px; 
+        padding: 10px 4px;
         position: absolute;
         top: auto;
         width: auto;

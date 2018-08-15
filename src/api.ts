@@ -29,7 +29,7 @@ const blacklabEndpoint = app.getConfig().then(config => createEndpoint({
     },
 }))
 .catch(() => new Promise<never>((resolve, reject) => reject(new ApiError(
-`Please reload the page.`, 
+`Please reload the page.`,
 `Failed to start up because /config/appConfig.json is missing on the server.
 Please correct this and reload the page to try again.`, '')
 )));
@@ -44,7 +44,7 @@ const paths = {
         is performed by the servlet container and runs before any application code.
         So ensure our requests end with a trailing slash to prevent the server from redirecting
     */
-    root: () =>                             './', 
+    root: () =>                             './',
     index: (indexId: string) =>             `${indexId}/`,
     indexStatus: (indexId: string) =>       `${indexId}/status/`,
     documentUpload: (indexId: string) =>    `${indexId}/docs/`,
@@ -60,11 +60,11 @@ const paths = {
 export const blacklab = {
     getServerInfo: async () => (await blacklabEndpoint)
         .get<BLTypes.BLServer>(paths.root()),
-  
+
     getUser: async () => (await blacklabEndpoint)
         .get<BLTypes.BLServer>(paths.root())
         .then(r => r.user),
-    
+
     getCorpora: async () => (await blacklabEndpoint)
         .get<BLTypes.BLServer>(paths.root())
         .then(r => Object.entries(r.indices))
@@ -84,17 +84,17 @@ export const blacklab = {
         .then(r => r.map(([id, format]: [string, BLTypes.BLFormat]) => normalizeFormat(id, format))),
 
     getFormatContent: async (id: string) => (await blacklabEndpoint)
-        .get<BLTypes.BLFormatContent>(paths.formats()),
-       
+        .get<BLTypes.BLFormatContent>(paths.formatContent(id)),
+
     getFormatXslt: async (id: string) => (await blacklabEndpoint)
         .get<string>(paths.formatXslt(id)),
 
 
     postShares: async (id: string, users: BLTypes.BLShareInfo) => (await blacklabEndpoint)
-        .post<BLTypes.BLResponse>(paths.shares(id), 
+        .post<BLTypes.BLResponse>(paths.shares(id),
             // Need to manually set content-type due to long-standing axios bug
             // https://github.com/axios/axios/issues/362
-            qs.stringify({users: users.map(u => u.trim()).filter(u => u.length)}, {arrayFormat: 'brackets'}), 
+            qs.stringify({users: users.map(u => u.trim()).filter(u => u.length)}, {arrayFormat: 'brackets'}),
             {headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}}
         ),
 
@@ -106,15 +106,15 @@ export const blacklab = {
     },
 
     postCorpus: async (id: string, displayName: string, format: string) => (await blacklabEndpoint)
-        .post(paths.root(), 
-            qs.stringify({name: id, display: displayName, format}), 
+        .post(paths.root(),
+            qs.stringify({name: id, display: displayName, format}),
             {headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}}
         ),
-    
+
     postDocuments: async (
-        indexId: string, 
-        docs: FileList, 
-        meta?: FileList|null, 
+        indexId: string,
+        docs: FileList,
+        meta?: FileList|null,
         onProgress?: (percentage: number) => void
     ) => {
         const endpoint = await blacklabEndpoint;
