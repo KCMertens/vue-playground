@@ -9,7 +9,7 @@
 
         <div>
             <form @submit.prevent="downloadFormat">
-                <combo-box filter v-model="formatToDownload"
+                <combo-box filter allow-custom-values v-model="formatToDownload"
                     :options="formatList"
                     placeholder="Choose a format"
                     wrap
@@ -20,7 +20,7 @@
 
         <div>
             <h3>Edit area</h3>
-            <label for="format_name">Format name</label><input type="text" id="format_name"/>
+            <label for="format_name">Format name</label><input type="text" id="format_name" v-model="formatName"/>
             <select id="format_type" class="selectpicker" data-width="auto" data-style="btn-primary">
                 <option label="YAML" value="yaml" selected>YAML</option>
                 <option label="JSON" value="json">JSON</option>
@@ -30,7 +30,7 @@
 
 
         <div>
-            <button type="button" :disabled="busy">Save</button>
+            <button type="button" :disabled="busy" @click="save">Save</button>
         </div>
         <h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="http://inl.github.io/BlackLab/how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
 
@@ -75,6 +75,7 @@ export default Vue.extend({
         successMsg: null as BLResponse|null,
         formatToDownload: '',
         formatContent: '',
+        formatName: '',
         downloadingFormat: false,
         readingFile: false,
         saving: false
@@ -129,7 +130,7 @@ export default Vue.extend({
         },
 
         onFileChanged(files: FileList, numFiles: number) {
-            if (numFiles !== 1 || this.readingFile) {
+            if (numFiles !== 1 || this.busy) {
                 return;
             }
             this.readingFile = true;
@@ -145,6 +146,25 @@ export default Vue.extend({
 
             // @ts-ignore
             this.$refs.file.clear();
+        },
+        save() {
+            if (this.busy) {
+                return;
+            }
+
+            if (!this.formatContent) {
+                this.errorMsg = new ApiError('Cannot save', 'Format is empty', '');
+                return;
+            } else if (!this.formatName) {
+                this.errorMsg = new ApiError('Cannot save', 'Please enter a name', '');
+                return;
+            }
+
+            this.saving = true;
+            this.clearStatus();
+            api.blacklab.postFormat(this.formatName, this.formatContent)
+            .then(this.setSuccess, this.setError)
+            .finally(() => this.saving = false);
         }
     }
 });

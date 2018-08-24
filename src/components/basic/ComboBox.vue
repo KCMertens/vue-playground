@@ -1,7 +1,6 @@
 <template>
-    <!-- TODO classes to allow styling overrides -->
-    <div class="combobox">
-        <input type="text"
+    <div class="combobox"> <!-- classes and styles attached to <ComboBox/> are attached here automatically -->
+        <input v-if="allowCustomValues" type="text"
             ref="input"
 
             @focus="open"
@@ -14,9 +13,35 @@
             v-model="currentValue"
             v-bind="$attrs"
             v-on="getInputListeners"
-        />
+        /> <!-- other event handlers and other unknown attributes are passed on through v-bind and v-on respecively -->
+        <button v-else
+            @focus="open"
+            @click="isOpen ? open() : close();"
+            @keydown.prevent.down="focusDown"
+            @keydown.prevent.up="focusUp"
+            @keydown.prevent.esc="close"
+            @keydown.tab="close"
+            >
+            <span v-if="currentValue">{{currentValue}} </span>
+            <span v-else class="placeholder">{{$attrs.placeholder || 'Select a value'}} </span>
+            <span :class="['fa', {'fa-caret-down': !(isOpen && hasVisibleOptions), 'fa-caret-up': isOpen && hasVisibleOptions}]"/>
+        </button>
 
         <ul :class="['menu', {'wrap': wrap}]" v-show="isOpen && hasVisibleOptions" ref="ul">
+            <!-- empty option in case user can't type -->
+            <li v-if="!allowCustomValues"
+                class="option"
+                tabindex="-1"
+
+                key="&nbsp;"
+                title="&nbsp;"
+                @click="select('')"
+                @keydown.prevent.enter="select('')"
+                @keydown.prevent.tab="$event.shiftKey ? focusUp() : focusDown()"
+                @keydown.prevent.down="focusDown"
+                @keydown.prevent.up="focusUp"
+                @keydown.prevent.esc="close"
+            >&nbsp;</li>
 
             <li v-for="option in filteredOptions.ungrouped"
                 class="option"
@@ -99,9 +124,11 @@ export default Vue.extend({
     inheritAttrs: false,
     props: {
         options: Array as () => SimpleOptionList|OptionList|OptionGroupList,
-        filter: Boolean,
-        value: String as () => string,
-        wrap: Boolean,
+        filter: Boolean, // is the dropdown list filtered by the current value (acts more as an autocomplete)
+
+        value: String as () => string, // for v-bind, or just as initial value
+        wrap: Boolean, // are long options line wrapped?
+        allowCustomValues: Boolean, // allow typing in the input or only selecting from the list
     },
     data: () =>  ({
         isOpen: false,
@@ -117,9 +144,7 @@ export default Vue.extend({
             return listeners;
         },
 
-        // tslint:disable
         filterableOptions(): FilteredOptions {
-        // tslint:enable
             function mapOption(s: Option): FilterableOption {
                 return {
                     value: s.value,
@@ -157,7 +182,7 @@ export default Vue.extend({
         },
 
         filteredOptions(): FilteredOptions {
-            if (!this.filterableValue) {
+            if (!this.filterableValue || !this.filter) {
                 return this.filterableOptions;
             }
 
@@ -181,7 +206,9 @@ export default Vue.extend({
             this.isOpen = true;
         },
         close() {
-            (this.$refs.input as HTMLElement).focus();
+            if (this.$refs.input) {
+                (this.$refs.input as HTMLElement).focus();
+            }
             this.isOpen = false;
             this.focusIndex = null;
         },
@@ -195,8 +222,8 @@ export default Vue.extend({
             const ul = this.$refs.ul as HTMLElement;
             const lis = ul.children;
 
-            // debugger;
-            const inc = this.loopingIncrementor(this.focusIndex || 0, lis.length, offset);
+            // start at -1 so first increment rolls to 0
+            const inc = this.loopingIncrementor(this.focusIndex != null ? this.focusIndex : -1, lis.length, offset);
             while (lis[inc.next()].classList.contains('optiongroup')) {/*next() is the import part*/}
             this.focus(inc.current);
         },
@@ -267,7 +294,7 @@ export default Vue.extend({
     .menu {
         background: white;
         box-shadow: 0px 2px 5px -2px black, 0px 4px 9px -4px rgba(0,0,0,0.5);
-        border: 1px solid rgba(0,0,0,0.1);
+        border: 1px solid #ccc;
         margin-top: 3px;
         position: absolute;
         top: auto;

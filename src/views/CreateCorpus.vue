@@ -1,9 +1,9 @@
 <template>
 <div v-if="user">
-    
+
     <h2>Create New Corpus</h2>
     <!-- TODO route back to previous view -->
-    
+
     <div>
         <label for="new_corpus_name">Corpus Name</label>
         <input v-model="name" id="new_corpus_name" type="text" maxlength="80"/>
@@ -12,17 +12,13 @@
 
     <div>
         <label for="new_corpus_type" title="The format of the documents that will be stored in the corpus">Document Format</label>
-        <select id="new_corpus_type" v-model="formatId">
-            <option v-for="format in formatList" :key="format.id" :value="format.id">
-                {{format.displayName}}
-            </option>
-        </select>
+        <ComboBox v-model="formatId" :options="formatList.map(format => ({value: format.id, label: format.displayName}))"/>
     </div>
 
     <template v-if="formatId">
         <div>{{formats[formatId].description || 'No description available'}}</div>
         <a target="_blank" :href="formats[formatId].helpUrl" :disabled="!!formats[formatId].helpUrl">{{formats[formatId].helpUrl ? 'More information' : 'No help available for ' + formats[formatId].displayName}}</a>
-        
+
     </template>
 
     <MessageBox class="error" v-if="errorMsg" :title="errorMsg.title" :message="errorMsg.message" :dismiss="clearError"/>
@@ -41,6 +37,7 @@
 import Vue from 'vue';
 
 import MessageBox from '@/components/basic/MessageBox.vue';
+import ComboBox from '@/components/basic/ComboBox.vue';
 
 import {NormalizedFormat, ApiError} from '@/types/apptypes';
 // import * as api from '@/api';
@@ -51,10 +48,11 @@ import * as corporaStore from '@/store/corporastore';
 export default Vue.extend({
     name: 'CreateCorpus',
     components: {
-        MessageBox
+        MessageBox,
+        ComboBox,
     },
     props: {
-        
+
     },
     computed: {
         user: userStore.get.user,
